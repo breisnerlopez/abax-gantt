@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/abax-gantt/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- CSP movida a headers HTTP en deploy/server.ts (frame-ancestors no funciona en meta) -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' http://localhost:* https://*; base-uri 'self'; form-action 'self';" />
+    <meta name="description" content="ABAX Gantt — Gestor de proyectos con WBS y Gantt" />
+    <meta name="theme-color" content="#4f5bd5" />
+    <link rel="manifest" href="/abax-gantt/manifest.json" />
+    <title>ABAX Gantt</title>
+    <link rel="preload" href="/abax-gantt/fonts/Inter-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/abax-gantt/fonts/Inter-600.woff2" as="font" type="font/woff2" crossorigin />
+    <script>
+      document.documentElement.setAttribute('data-theme', localStorage.getItem('abax.theme') || 'dark');
+    </script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/abax-gantt/sw.js').catch(() => {});
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

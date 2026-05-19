@@ -1,0 +1,100 @@
+id,name,parent_id,identifier,active,created_at
+3,Liquidacion de convenios,,liquidacion-de-convenios,t,2025-04-28 14:39:32.521652+00
+4,App digitalizacion documentos sustentos convenios,,app-digitalizacion-documentos-sustentos-convenios,f,2025-04-28 14:43:35.131793+00
+5,Implementación de Seguridad - Servicios Digital,,implementacion-de-seguridad-servicios-digital,t,2025-05-07 16:22:20.356727+00
+6,Mejoras Impresion de Sticker,,mejoras-impresion-de-sticker,t,2025-05-07 17:23:18.339441+00
+7,Concurso Millon,,concurso-millon,t,2025-05-07 20:09:49.10496+00
+8,Solicitudes Administrador Temporal,,solicitudes-administrador-temporal,t,2025-05-07 20:27:59.096253+00
+10,[B2B] Apoyo Proyecto,,b2b-apoyo-hitos-proyecto,t,2025-05-07 20:41:14.350981+00
+11,Drogueria,59,drogueria,t,2025-05-08 07:45:44.978606+00
+12,[B2B] DC Cappa/Surquillo - Fase 1,11,b2b-dc-cappa-slash-surquillo,t,2025-05-08 07:46:56.604864+00
+14,Token para Redención,,token-para-redencion,t,2025-05-08 15:34:09.907514+00
+15,Surcharge,,surcharge,t,2025-05-08 15:49:50.702213+00
+16,Capón Presencial,,capon-presencial,t,2025-05-09 14:49:16.895996+00
+17,Rappi,,rappi,t,2025-05-09 15:38:19.205763+00
+18,AbaxWMS,,logfireb2b,t,2025-05-13 20:08:58.393297+00
+22,Proyecto Droguería,,proyecto-drogueria,t,2025-05-19 21:19:09.692722+00
+23,Dialog Nota de Credito 2B2,,dialog-nota-de-credito-2b2,t,2025-05-19 22:12:08.988065+00
+24,B2B NC Devolucion Dinero,,b2b-nc-devolucion-dinero,t,2025-05-19 22:29:19.91981+00
+25,Verificación de Integridad entre Binarios Desplegados y Código Versionado,,verificacion-de-integridad-entre-binarios-desplegados-y-codigo-versionado,t,2025-05-28 16:33:18.212601+00
+26,Migracion Micro Servicios,10,migracion-micro-servicios,t,2025-06-02 16:10:53.180552+00
+27,[Correccion] Acumulación de puntos - cambio de producto,,correccion-acumulacion-de-puntos-cambio-de-producto,t,2025-06-11 12:30:36.805001+00
+28,[CAPON] [ABAX POSU] Toma de Pedido y Aplicar NC flujo presencial,53,capon-toma-de-pedido-y-aplicar-nc-flujo-presencial,t,2025-06-11 14:45:58.154596+00
+29,[RPA] Instalador PinPad,,rpa-instalador-pinpad,t,2025-06-11 16:29:16.15493+00
+30,Titan,,titan,t,2025-06-16 13:35:12.018227+00
+31,Cuadratura Orvees - Millon,,cuadratura-orvees-millon,t,2025-06-23 20:04:53.784092+00
+32,Diseño de Modulo de Cambio de Precios,,diseno-de-modulo-de-cambio-de-precios,t,2025-06-25 18:25:56.046518+00
+33,Requerimientos EXPRESS,,requerimientos-express,t,2025-06-26 19:52:10.401297+00
+34,Update HGateway 6.5,,update-hgateway-6-dot-5,t,2025-07-03 15:36:18.233525+00
+35,[POSU] Reporte de Anulaciones,,posu-reporte-de-anulaciones,t,2025-07-14 14:03:04.708055+00
+36,[ABAX POSU] Mejoras en Carga de Servicios,53,abax-posu-mejoras-en-carga-de-servicios,t,2025-07-14 20:09:37.599503+00
+37,Q3 SPRING 3 - LOS 6 CAMINOS,11,q3-spring-3-los-6-caminos,f,2025-07-15 19:09:32.125648+00
+38,Implementar Límites para Cash In/ Cash Out,,implementar-limites-para-cash-in-slash-cash-out,t,2025-07-15 19:10:55.053072+00
+39,SAP HANA,,sap-hana,t,2025-07-17 15:54:56.789855+00
+40,[Mejoras] Modulo de Stickers,32,mejoras-modulo-de-stickers,t,2025-07-18 15:42:57.428152+00
+41,[B2B] Consulta Comprobantes,,b2b-consulta-comprobantes,t,2025-07-21 22:27:22.057392+00
+42,Los 6 Caminos,,los-6-caminos,t,2025-08-01 16:07:26.247299+00
+43,Q3-Sprint 4,42,q3-sprint-4,t,2025-08-01 16:10:23.590644+00
+44,[Operaciones] - Implementar pre-boleta,,operaciones-implementar-pre-boleta,t,2025-08-11 13:50:06.599408+00
+45,[Parametro] Omnicanal,,parametro-omnicanal,t,2025-08-11 14:05:00.688929+00
+47,[DEMONIO MILLON] REVISION REGULARIZACION,,demonio-millon-revision-regularizacion,t,2025-08-12 20:46:41.163647+00
+48,Quality Assurance (QA),,quality-assurance-qa,t,2025-08-13 16:40:43.956352+00
+50,[DINO] Nueva Marca Beauty,,dino-nueva-marca-beauty,t,2025-08-18 15:20:01.856898+00
+51,[FILTRO] Personalizacion Search,35,filtro-personalizacion-search,t,2025-08-18 16:44:00.563033+00
+52,Q4-Sprint 1,42,q4-sprint-1,t,2025-08-19 14:36:38.626754+00
+53,[ABAX POSU] TOMADOR DE PEDIDO POSU,82,abax-posu-tomador-de-pedido-posu,t,2025-08-27 13:56:25.632619+00
+54,[ABAX POSU] MEJORAS E INICIATIVAS,53,abax-posu-mejoras-e-iniciativas,t,2025-08-27 13:58:03.192619+00
+55,Convenios,42,convenios,t,2025-08-27 15:11:41.804534+00
+56,TICKETS GLPI,,tickets-glpi,t,2025-08-29 20:27:00.408154+00
+57,REPORTE DE VENTA POR CATEGORIA,,reporte-de-venta-por-categoria,t,2025-09-01 19:43:43.719607+00
+58,[B2B] DC Cappa/Surquillo - Fase 2,11,b2b-dc-cappa-slash-surquillo-fase-2,t,2025-09-09 01:09:06.420287+00
+59,Team Halcones Blancos,,team-halcones-blancos,t,2025-09-09 01:15:24.351056+00
+60,[B2B] DC Cappa/Surquillo - Fase 2 - DESARROLLO,11,b2b-dc-cappa-slash-surquillo-fase-2-desarrollo,t,2025-09-12 21:02:48.476481+00
+61,[POSU - PROYECTO] Proyecto Monroe,,posu-proyecto-proyecto-monroe,t,2025-09-15 15:55:19.814697+00
+62,Q3-Sprint 6,42,q3-sprint-6,t,2025-09-15 19:05:39.093913+00
+63,SKYNET 2026,,team-skynet,t,2025-09-23 20:07:49.973786+00
+64,Automatización IA,63,automatizacion-ia,t,2025-09-23 20:09:27.461071+00
+65,Programa de Lealtad !,61,programa-de-lealtad,t,2025-10-06 13:11:00.469017+00
+66,Q4-Sprint 2,42,q4-sprint-2,t,2025-10-13 19:04:38.0419+00
+67,Omnicanal Flujo RAD - Cambio de Direccion,,omnicanal-flujo-rad-cambio-de-direccion,t,2025-10-17 16:24:12.143389+00
+68,Q4-sprint 3,42,q4-sprint-3,t,2025-10-27 20:08:03.106786+00
+69,Integración & Despliegues,,integracion-and-despliegues,t,2025-11-11 14:20:00.096363+00
+70,Q4-Sprint 4,42,q4-sprint-4,t,2025-11-11 16:17:51.700066+00
+71,ABAX POSU - Refactorizar FRONT,53,abax-posu-refactorizar-front,t,2025-11-18 15:12:16.897444+00
+72,[Observaciones] Omnicanal,,observaciones-omnicanal,t,2025-11-26 13:33:09.910949+00
+73,[MIA] POSU ABAX,53,mia-posu-abax,t,2025-12-01 18:50:17.113225+00
+74,Reducción de Tickets y Llamadas,,mantenimiento-and-eficiencia,t,2026-01-18 20:50:56.307507+00
+75,N1,74,reduccion-de-tickets,t,2026-01-18 21:08:33.594142+00
+76,N2,74,n2,t,2026-01-18 21:14:37.901771+00
+77,Mantenimiento POS - CQ,,mantenimiento-pos-cq,t,2026-01-18 21:16:19.304103+00
+78,[Omnicanal Pruebas y Despliegue 2026],82,omnicanal-pruebas-y-despliegue,t,2026-01-26 13:11:29.596905+00
+79,[ES7] Regularizar Pedidos,82,es7-regularizar-pedidos,t,2026-01-26 14:00:03.898452+00
+80,Ticket Resumido,59,ticket-resumido,t,2026-02-03 00:09:03.727313+00
+81,Ticket Resumido V1,80,ticket-resumido-v1,t,2026-02-03 00:12:13.74746+00
+82,TEAM - JEDIS,,team-jedis,t,2026-02-10 22:04:09.932433+00
+83,2026 - Estandar - Q1 - Spring 04,42,2026-estandar-q1-spring-04,t,2026-02-10 23:09:49.470005+00
+84,[Skynet] Automatizaciones IA - Febrero 2026,63,automatizaciones-ia,t,2026-02-11 00:08:16.182484+00
+85,Cambio de Logo SIP,82,cambio-de-logo-sip,t,2026-02-24 15:14:09.275878+00
+86,Modulo de impresion de stickers,59,modulo-de-impresion-de-stickers,t,2026-03-03 14:01:54.502999+00
+88,Lentitud 2026,,lentitud-2026,t,2026-03-03 20:30:52.506921+00
+89,Eficiencia Operativa MDA - Reduccion de Tickets,,eficiencia-mda-tickets,t,2026-03-04 16:20:19.161276+00
+90,Programa MDA: Reduccion de Operatividad y Tickets,,mda-reduccion-operatividad-tickets,t,2026-03-04 16:36:33.876874+00
+91,MDA: Autoservicio y Automatización para Reducir Operatividad y Tickets,,mda-autoservicio-automatizacion,t,2026-03-04 16:45:11.273351+00
+92,Automatizacion MDA: Reduccion de Operatividad y Tickets,,automatizacion-mda-reduccion-tickets,t,2026-03-04 17:05:21.819473+00
+93,[2026 - Estándar - Q1 - Sprint 06] NC Matriz DC y beneficios Salud mental en programas AMED,42,2026-estandar-q1-sprint-06-nc-matriz-dc-y-beneficios-salud-mental-en-programas-amed,t,2026-03-09 21:11:37.37469+00
+94,[FIX] REDONDEO RAPPI,82,fix-redondeo-rappi,t,2026-03-12 17:40:02.047648+00
+95,Web de Administración de Despliegues,,web-de-administracion-de-despliegues,t,2026-03-12 18:29:02.930754+00
+96,Implementaciones priorizadas - Varios,59,implementaciones-priorizadas-varios,t,2026-03-17 14:16:35.36884+00
+97,Implementaciones priorizadas - Varios,96,implementaciones-priorizadas-varios-1,t,2026-03-17 14:17:28.387765+00
+98,INICIATIVAS Y REQUERIMIENTOS TEAM JEDIS,82,iniciativas-y-requerimientos-team-jedis,t,2026-03-23 14:07:35.598979+00
+99,Convenios Amed pacífico y mejoras en Titan (recepción ciega y LI),42,convenios-amed-pacifico-y-mejoras-en-titan-recepcion-ciega-y-li,t,2026-03-24 13:50:25.422584+00
+100,B2B - LI - Recall,11,b2b-li-recall,t,2026-03-24 20:44:40.573946+00
+101,Q4-Sprint 6,82,q4-sprint-6,t,2026-04-06 12:54:13.760572+00
+102,Logística inversa (Creación de lotes),42,logistica-inversa-creacion-de-lotes,t,2026-04-06 13:19:31.663821+00
+103,Abax web - v. Tableta,63,abax-web-v-tableta,t,2026-04-07 13:18:34.920697+00
+104,Web de Despliegues POS,63,web-despliegues-pos,t,2026-04-07 13:54:42.156456+00
+105,ROADMAP BASE DE DATOS,63,roadmap-base-de-datos,t,2026-04-14 13:19:40.055576+00
+106,Q4 -Sprint 7,82,q4-sprint-7,t,2026-04-21 13:14:00.535312+00
+107,Atencion al cliet,,atencion-al-cliet,t,2026-04-27 21:35:35.051755+00
+108,Q4-Sprint 8,82,q4-sprint-8,t,2026-05-06 13:14:59.387064+00
+109,Sorteo del millón 2026 e IA convenios,42,sorteo-del-millon-2026-e-ia-convenios,t,2026-05-11 13:28:40.272361+00

@@ -1,0 +1,15 @@
+id,name,position,is_closed,is_default
+1,New,1,f,t
+2,In specification,2,f,f
+3,Specified,3,f,f
+4,Confirmed,4,f,f
+5,To be scheduled,5,f,f
+6,Scheduled,6,f,f
+7,In progress,7,f,f
+8,Developed,8,f,f
+9,In testing,9,f,f
+10,Tested,10,f,f
+11,Test failed,11,f,f
+12,Closed,12,t,f
+13,On hold,13,f,f
+14,Rejected,14,t,f

@@ -1,0 +1,31 @@
+{
+  "name": "abax-gantt",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:22-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/deno:1": {}
+  },
+  "forwardPorts": [54321, 54322, 54323, 54324, 5173],
+  "portsAttributes": {
+    "54321": { "label": "Supabase API" },
+    "54322": { "label": "PostgreSQL" },
+    "54323": { "label": "Supabase Studio" },
+    "54324": { "label": "Inbucket" },
+    "5173": { "label": "Vite" }
+  },
+  "postCreateCommand": "npm --prefix poc install && npm install",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "denoland.vscode-deno",
+        "supabase.supabase-vscode",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "deno.enablePaths": ["supabase/functions"],
+        "editor.formatOnSave": true
+      }
+    }
+  }
+}

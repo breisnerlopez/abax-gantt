@@ -1,0 +1,45 @@
+services:
+  authentik-test-server:
+    image: ghcr.io/goauthentik/server:2025.10
+    container_name: authentik-test-server
+    restart: unless-stopped
+    command: server
+    environment:
+      AUTHENTIK_SECRET_KEY: "qa-test-secret-key-min-50-chars-long-for-authentik-dev"
+      AUTHENTIK_BOOTSTRAP_PASSWORD: "AbaxQATest2026!"
+      AUTHENTIK_BOOTSTRAP_EMAIL: "admin@abax-qa.local"
+      AUTHENTIK_BOOTSTRAP_TOKEN: "qa-bootstrap-token-2026-abax"
+      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+      AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
+    volumes:
+      - authentik-test-media:/media
+    networks:
+      - authentik-qa
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/-/health/ready/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  authentik-test-worker:
+    image: ghcr.io/goauthentik/server:2025.10
+    container_name: authentik-test-worker
+    restart: unless-stopped
+    command: worker
+    environment:
+      AUTHENTIK_SECRET_KEY: "qa-test-secret-key-min-50-chars-long-for-authentik-dev"
+      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+    volumes:
+      - authentik-test-media:/media
+    networks:
+      - authentik-qa
+    depends_on:
+      authentik-test-server:
+        condition: service_healthy
+
+networks:
+  authentik-qa:
+    name: authentik-qa
+
+volumes:
+  authentik-test-media:

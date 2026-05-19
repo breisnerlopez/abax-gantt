@@ -1,0 +1,110 @@
+project_id = "abax-gantt"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "5MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+jwt_expiry = 3600
+
+[edge_runtime]
+enabled = true
+policy = "oneshot"
+inspector_port = 8083
+
+[functions.api-projects]
+verify_jwt = false
+
+[functions.api-wbs]
+verify_jwt = false
+
+[functions.api-wbs-node]
+verify_jwt = false
+
+[functions.api-dependencies]
+verify_jwt = false
+
+[functions.api-dependency]
+verify_jwt = false
+
+[functions.api-assignees]
+verify_jwt = false
+
+[functions.api-assignee]
+verify_jwt = false
+
+[functions.api-admin-users]
+verify_jwt = false
+
+[functions.api-admin-user]
+verify_jwt = false
+
+[functions.api-backlog]
+verify_jwt = false
+
+[functions.api-wbs-schedule]
+verify_jwt = false
+
+[functions.api-wbs-progress]
+verify_jwt = false
+
+[functions.api-timesheet]
+verify_jwt = false
+
+[functions.api-wbs-move]
+verify_jwt = false
+
+[functions.api-summary]
+verify_jwt = false
+
+[functions.api-admin-project-types]
+verify_jwt = false
+
+[functions.api-admin-project-type]
+verify_jwt = false
+
+[functions.api-attachments]
+verify_jwt = false
+
+[functions.api-attachment]
+verify_jwt = false
+
+[functions.api-export]
+verify_jwt = false
+
+[functions.api-reports]
+verify_jwt = false
+
+[functions.api-kpi]
+verify_jwt = false
+
+[functions.api-import]
+verify_jwt = false
+
+[functions.api-mcp]
+verify_jwt = false
+
+[functions.api-debug]
+verify_jwt = false

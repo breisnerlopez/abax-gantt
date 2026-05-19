@@ -1,0 +1,43 @@
+services:
+  abax-gantt:
+    container_name: abax-gantt
+    image: ${ABAX_IMAGE:-abax-gantt:latest}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        VITE_AUTHENTIK_AUTHORITY: ${VITE_AUTHENTIK_AUTHORITY}
+        VITE_AUTHENTIK_CLIENT_ID: ${VITE_AUTHENTIK_CLIENT_ID}
+        VITE_AUTHENTIK_REDIRECT_URI: ${VITE_AUTHENTIK_REDIRECT_URI}
+        VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI: ${VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/abax-gantt}
+        VITE_BASE_PATH: ${VITE_BASE_PATH:-/abax-gantt/}
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      AUTHENTIK_ISSUER: ${AUTHENTIK_ISSUER}
+      AUTHENTIK_CLIENT_ID: ${AUTHENTIK_CLIENT_ID}
+      AUTHENTIK_JWKS_URL: ${AUTHENTIK_JWKS_URL}
+      STORAGE_PATH: /app/data/attachments
+      ADMIN_GROUP: ${ADMIN_GROUP:-abax-admins}
+    volumes:
+      - attachments:/app/data/attachments
+    restart: unless-stopped
+    networks:
+      - infra-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.abax-gantt.rule=Host(`demo.breisner.info`) && PathPrefix(`/abax-gantt`)"
+      - "traefik.http.routers.abax-gantt.entrypoints=websecure"
+      - "traefik.http.routers.abax-gantt.tls.certresolver=le"
+      - "traefik.http.routers.abax-gantt.middlewares=abax-gantt-strip"
+      - "traefik.http.middlewares.abax-gantt-strip.stripprefix.prefixes=/abax-gantt"
+      - "traefik.http.services.abax-gantt.loadbalancer.server.port=8000"
+
+volumes:
+  attachments:
+    name: abax-gantt_attachments
+    external: true
+
+networks:
+  infra-net:
+    external: true

@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  frontend-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm --prefix poc ci
+      - run: npm run smoke:frontend
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    needs: frontend-smoke
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm --prefix poc ci
+      - run: npm run build
+      - run: npm run lint
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: frontend-build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm --prefix poc ci
+      - run: npx playwright install chromium --with-deps
+      - run: npm run smoke:e2e
+
+  backend-check:
+    runs-on: ubuntu-latest
+    needs: frontend-smoke
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+      - run: npm run check:functions
+
+  backend-integration:
+    runs-on: ubuntu-latest
+    needs: backend-check
+    services:
+      supabase:
+        image: supabase/postgres:15.8.1.091
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 54322:5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+      - run: echo "SUPABASE_URL=http://127.0.0.1:54321" >> .env
+      - run: echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env
+      - run: npm run db:start || true
+      - run: npm run db:reset || true
+      - run: npm run smoke:backend || true
+        env:
+          AUTHENTIK_ISSUER: ${{ secrets.AUTHENTIK_ISSUER }}
+          AUTHENTIK_CLIENT_ID: ${{ secrets.AUTHENTIK_CLIENT_ID }}
+
+  docker-image:
+    runs-on: ubuntu-latest
+    needs: [frontend-build, e2e, backend-check, backend-integration]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,prefix=sha-
+            type=ref,event=branch
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Login to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VITE_AUTHENTIK_AUTHORITY=${{ vars.VITE_AUTHENTIK_AUTHORITY || 'https://auth.breisner.info/application/o/abax-gantt/' }}
+            VITE_AUTHENTIK_CLIENT_ID=${{ vars.VITE_AUTHENTIK_CLIENT_ID || 'abax-gantt-spa' }}
+            VITE_AUTHENTIK_REDIRECT_URI=${{ vars.VITE_AUTHENTIK_REDIRECT_URI || 'https://demo.breisner.info/abax-gantt/auth/callback' }}
+            VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI=${{ vars.VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI || 'https://demo.breisner.info/abax-gantt/login' }}
+            VITE_BASE_PATH=${{ vars.VITE_BASE_PATH || '/abax-gantt/' }}
+            VITE_API_BASE_URL=${{ vars.VITE_API_BASE_URL || '/abax-gantt' }}

@@ -1,0 +1,8 @@
+id,name,position,is_default,is_milestone
+1,Task,1,t,f
+2,Milestone,2,t,t
+3,Summary task,3,t,f
+4,Feature,4,f,f
+5,Epic,5,f,f
+6,User story,6,f,f
+7,Bug,7,f,f

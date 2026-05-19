@@ -1,0 +1,9 @@
+id,name,project_id,start_date,effective_date,status
+5,Febrero 2026,84,2026-02-01,2026-02-28,open
+6,Marzo 2026,84,2026-03-01,2026-03-31,open
+7,Abril 2026,84,2026-04-01,2026-04-30,open
+8,Mayo 2026,84,2026-05-01,2026-05-31,open
+9,Boton GLPI - Pilotos,88,2026-02-23,2026-03-13,open
+10,Feb - Hallazgos iniciales,88,2026-02-10,2026-02-28,closed
+11,Chrome Enterprise (evaluacion),88,,,open
+12,RAM/Restart 500,88,2026-02-26,2026-03-09,open
