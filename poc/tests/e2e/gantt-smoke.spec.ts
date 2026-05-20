@@ -10,7 +10,7 @@ const project = { id: 'project-demo', name: 'Demo E2E', description: null, statu
 test('handles toast notifications for validation errors on empty name', async ({ page }) => {
   await mockApi(page);
   await page.addInitScript(() => window.localStorage.setItem('abax.auth.token', 'e2e-token'));
-  await page.goto('/gantt/gantt');
+  await page.goto('/abax-gantt/gantt');
   await page.getByRole('button', { name: /\+ Proyecto/ }).click();
   await page.getByRole('button', { name: 'Crear' }).click();
   await expect(page.getByText('El nombre es obligatorio.', { exact: false })).toBeVisible();
@@ -27,21 +27,21 @@ async function mockApi(page: Page) {
     attachments: [] as unknown[],
   };
 
-  await page.route('**/functions/v1/**', async (route) => {
+  await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url());
-    const path = url.pathname.replace(/^.*\/functions\/v1\//, '');
+    const path = url.pathname.replace(/^.*\/api\//, 'api/');
     const method = route.request().method();
 
-    if (path === 'api-projects' && method === 'GET') return json(route, state.projects);
-    if (path === 'api-users' && method === 'GET') return json(route, users);
-    if (path === 'api-wbs' && method === 'GET') return json(route, state.nodes);
-    if (path === 'api-backlog' && method === 'GET') return json(route, state.backlog);
-    if (path === 'api-dependencies' && method === 'GET') return json(route, state.dependencies);
-    if (path === 'api-summary' && method === 'GET') return json(route, null);
+    if (path === 'api/projects' && method === 'GET') return json(route, state.projects);
+    if (path === 'api/users' && method === 'GET') return json(route, users);
+    if (path === 'api/wbs' && method === 'GET') return json(route, state.nodes);
+    if (path === 'api/backlog' && method === 'GET') return json(route, state.backlog);
+    if (path === 'api/dependencies' && method === 'GET') return json(route, state.dependencies);
+    if (path === 'api/summary' && method === 'GET') return json(route, null);
 
-    if (path == 'api-assignees' && method === 'GET') return json(route, state.assignees);
+    if (path == 'api/assignees' && method === 'GET') return json(route, state.assignees);
 
-    if (path === `api-reports/${project.id}` && method === 'GET') {
+    if (path === `api/reports/${project.id}` && method === 'GET') {
       return json(route, { project, budget: { total: 0, estimated_cost: 0, consumed_pct: 0 }, hours: { estimated: 0, actual: 0, variance_pct: 0 }, progress: 0, task_count: 0, task_breakdown: [], hours_by_person: [] });
     }
 
