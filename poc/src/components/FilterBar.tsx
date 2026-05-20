@@ -98,9 +98,9 @@ export function FilterBar({
       {filters.length > 0 && (
         <div className="filter-chips-row">
           {filters.map((f) => <span key={f} className="filter-chip">{f}</span>)}
-          {hasActiveFilters && <button className="clear-button" onClick={onClear}>Limpiar</button>}
         </div>
       )}
+      <button className={`clear-button${!hasActiveFilters ? ' clear-button--idle' : ''}`} onClick={hasActiveFilters ? onClear : undefined} disabled={!hasActiveFilters}>Limpiar</button>
       <span className="filter-count">{totalVisible} elementos</span>
 
       {moreOpen && (

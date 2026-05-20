@@ -5,6 +5,8 @@ import { toGanttData } from '../lib/dhtmlx-adapter';
 import type { Dependency, DependencyType, Profile, WbsNode } from '../lib/types';
 import { canCreateDependency, canMoveNode } from '../lib/validation';
 
+const COLLAPSED_KEY = 'abax.collapsed';
+
 const STATUS_LABELS: Record<string, string> = {
   pendiente: 'Pendiente',
   en_progreso: 'En progreso',
@@ -22,6 +24,17 @@ function computeNodeStatus(node: WbsNode): string {
   if (node.end_date && node.end_date < today) return 'retrasado';
   if ((node.progress ?? 0) > 0) return 'en_progreso';
   return 'pendiente';
+}
+
+function loadCollapsed(): Set<string> {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_KEY);
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+  } catch { return new Set(); }
+}
+
+function saveCollapsed(set: Set<string>) {
+  try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...set])); } catch { /* ignore */ }
 }
 
 interface GanttCanvasProps {
@@ -291,12 +304,25 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       return true;
     });
 
+    // Persistir colapsos de proyecto en localStorage
+    const collapsedSet = loadCollapsed();
+    const collapsedOpen = gantt.attachEvent('onTaskOpened', (id) => {
+      collapsedSet.delete(String(id));
+      saveCollapsed(collapsedSet);
+    });
+    const collapsedClosed = gantt.attachEvent('onTaskClosed', (id) => {
+      collapsedSet.add(String(id));
+      saveCollapsed(collapsedSet);
+    });
+
     return () => {
       gantt.detachEvent(selectEvent);
       gantt.detachEvent(linkAddEvent);
       gantt.detachEvent(linkDeleteEvent);
       gantt.detachEvent(updateEvent);
       gantt.detachEvent(moveEvent);
+      gantt.detachEvent(collapsedOpen);
+      gantt.detachEvent(collapsedClosed);
       gantt.clearAll();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo reinicializar si cambian permisos; scale se maneja en efecto separado
@@ -305,9 +331,8 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
   useEffect(() => {
     try {
       gantt.ext.zoom.setLevel(scale);
-      // Re-parse necesario para que DHTMLX recalcule ancho de columnas del timeline
-      // con el nuevo min_column_width del nivel de zoom.
-      const ganttData = toGanttData(nodesRef.current, dependenciesRef.current);
+      const collapsed = loadCollapsed();
+      const ganttData = toGanttData(nodesRef.current, dependenciesRef.current, collapsed);
       isParsingRef.current = true;
       gantt.parse(ganttData);
       setTimeout(() => { isParsingRef.current = false; }, 0);
@@ -319,7 +344,8 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
 
   useEffect(() => {
     if (!containerRef.current) return;
-    const ganttData = toGanttData(nodes, dependencies);
+    const collapsed = loadCollapsed();
+    const ganttData = toGanttData(nodes, dependencies, collapsed);
     isParsingRef.current = true;
     gantt.clearAll();
     gantt.parse(ganttData);

@@ -41,7 +41,7 @@ function computeNodeStatus(node: WbsNode): string {
   return 'pendiente';
 }
 
-export function toGanttData(nodes: WbsNode[], dependencies: Dependency[]) {
+export function toGanttData(nodes: WbsNode[], dependencies: Dependency[], collapsedIds?: Set<string>) {
   const scheduledNodes = nodes.filter((node) => !node.is_unscheduled && node.start_date);
   const existingIds = new Set(scheduledNodes.map((node) => node.id));
 
@@ -53,7 +53,7 @@ export function toGanttData(nodes: WbsNode[], dependencies: Dependency[]) {
     progress: Math.max(0, Math.min(1, node.progress ?? 0)),
     parent: node.parent_id && existingIds.has(node.parent_id) ? node.parent_id : 0,
     type: node.type,
-    open: true,
+    open: collapsedIds ? !collapsedIds.has(node.id) : true,
     color: node.color ?? undefined,
     status: computeNodeStatus(node),
     node,

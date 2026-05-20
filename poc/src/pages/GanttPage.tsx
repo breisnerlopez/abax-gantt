@@ -15,6 +15,28 @@ import { usePortfolio } from '../hooks/usePortfolio';
 import { addAssignee, apiUrl, createDependency, createProject, createWbsNode, deleteDependency, listAssignees, moveWbsNode, removeAssignee, reportProgress, scheduleWbsNode, unscheduleWbsNode, updateWbsNode } from '../lib/api';
 import type { AuthSession, DependencyType, NodeType, TaskAssignee, WbsNode } from '../lib/types';
 
+const FILTERS_KEY = 'abax.filters';
+
+function readFilter(key: string): string {
+  try {
+    const raw = localStorage.getItem(FILTERS_KEY);
+    if (!raw) return '';
+    return (JSON.parse(raw) as Record<string, string>)[key] ?? '';
+  } catch { return ''; }
+}
+
+function saveFilters(values: Record<string, string>) {
+  try { localStorage.setItem(FILTERS_KEY, JSON.stringify(values)); } catch { /* ignore */ }
+}
+
+function clearAllLocalState() {
+  try {
+    localStorage.removeItem('abax.filters');
+    localStorage.removeItem('abax.collapsed');
+    localStorage.removeItem('abax.detail.visible');
+  } catch { /* ignore */ }
+}
+
 const GanttCanvas = lazy(() => import('../components/GanttCanvas').then((module) => ({ default: module.GanttCanvas })));
 
 interface GanttPageProps {
@@ -35,19 +57,23 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
   const [createMode, setCreateMode] = useState<'project' | 'child' | null>(null);
   const [backlogOpen, setBacklogOpen] = useState(false);
   const [assignees, setAssignees] = useState<TaskAssignee[]>([]);
-  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') ?? '');
-  const [typeFilter, setTypeFilter] = useState<NodeType | null>(() => (searchParams.get('type') as NodeType) || null);
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') ?? readFilter('q'));
+  const [typeFilter, setTypeFilter] = useState<NodeType | null>(() => (searchParams.get('type') as NodeType) || readFilter('type') as NodeType || null);
   const [showUnscheduled, setShowUnscheduled] = useState(() => searchParams.get('unscheduled') === '1');
   const [myTasks, setMyTasks] = useState(() => searchParams.get('my') === '1');
-  const [focusProjectId, setFocusProjectId] = useState<string | null>(() => searchParams.get('focus') || null);
-  const [projectFilter, setProjectFilter] = useState<string | null>(() => searchParams.get('project_id') || null);
-  const [responsibleFilter, setResponsibleFilter] = useState<string | null>(() => searchParams.get('responsible_id') || null);
-  const [assigneeFilter, setAssigneeFilter] = useState<string | null>(() => searchParams.get('assignee_id') || null);
-  const [statusFilter, setStatusFilter] = useState<string | null>(() => searchParams.get('status') || null);
-  const [dateFrom, setDateFrom] = useState(() => searchParams.get('date_from') ?? '');
-  const [dateTo, setDateTo] = useState(() => searchParams.get('date_to') ?? '');
+  const [focusProjectId, setFocusProjectId] = useState<string | null>(() => searchParams.get('focus') || readFilter('focus') || null);
+  const [projectFilter, setProjectFilter] = useState<string | null>(() => searchParams.get('project_id') || readFilter('project_id') || null);
+  const [responsibleFilter, setResponsibleFilter] = useState<string | null>(() => searchParams.get('responsible_id') || readFilter('responsible_id') || null);
+  const [assigneeFilter, setAssigneeFilter] = useState<string | null>(() => searchParams.get('assignee_id') || readFilter('assignee_id') || null);
+  const [statusFilter, setStatusFilter] = useState<string | null>(() => searchParams.get('status') || readFilter('status') || null);
+  const [dateFrom, setDateFrom] = useState(() => searchParams.get('date_from') ?? readFilter('date_from'));
+  const [dateTo, setDateTo] = useState(() => searchParams.get('date_to') ?? readFilter('date_to'));
   const [todaySignal, setTodaySignal] = useState(0);
   const [ganttScale, setGanttScale] = useState<'Día' | 'Semana' | 'Mes' | 'Año'>('Semana');
+
+  useEffect(() => {
+    saveFilters({ q: searchTerm, type: typeFilter ?? '', unscheduled: showUnscheduled ? '1' : '', my: myTasks ? '1' : '', focus: focusProjectId ?? '', project_id: projectFilter ?? '', responsible_id: responsibleFilter ?? '', assignee_id: assigneeFilter ?? '', status: statusFilter ?? '', date_from: dateFrom, date_to: dateTo });
+  }, [searchTerm, typeFilter, showUnscheduled, myTasks, focusProjectId, projectFilter, responsibleFilter, assigneeFilter, statusFilter, dateFrom, dateTo]);
 
   // Panel de detalle on-demand: el usuario lo abre/cierra explícitamente.
   // Default cerrado para mantener el Gantt con máximo ancho.
@@ -503,6 +529,7 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
           setSearchTerm(''); setTypeFilter(null); setShowUnscheduled(false); setMyTasks(false);
           setFocusProjectId(null); setProjectFilter(null); setResponsibleFilter(null);
           setAssigneeFilter(null); setStatusFilter(null); setDateFrom(''); setDateTo('');
+          clearAllLocalState();
           syncUrl({ q: '', type: '', unscheduled: '', my: '', focus: '', project_id: '', responsible_id: '', assignee_id: '', status: '', date_from: '', date_to: '' });
         }}
         users={portfolio.data?.users ?? []}
