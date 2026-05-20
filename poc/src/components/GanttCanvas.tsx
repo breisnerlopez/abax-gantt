@@ -6,6 +6,7 @@ import type { Dependency, DependencyType, Profile, WbsNode } from '../lib/types'
 import { canCreateDependency, canMoveNode } from '../lib/validation';
 
 const COLLAPSED_KEY = 'abax.collapsed';
+const SCROLL_DATE_KEY = 'abax.scroll.date';
 
 const STATUS_LABELS: Record<string, string> = {
   pendiente: 'Pendiente',
@@ -37,6 +38,13 @@ function saveCollapsed(set: Set<string>) {
   try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...set])); } catch { /* ignore */ }
 }
 
+function restoreScrollPosition() {
+  try {
+    const saved = localStorage.getItem(SCROLL_DATE_KEY);
+    if (saved) gantt.showDate(new Date(Number(saved) || saved));
+  } catch { /* ignore */ }
+}
+
 interface GanttCanvasProps {
   nodes: WbsNode[];
   dependencies: Dependency[];
@@ -54,9 +62,10 @@ interface GanttCanvasProps {
   todaySignal: number;
   scale: 'Día' | 'Semana' | 'Mes' | 'Año';
   onMoveComplete: () => void;
+  collapseAllSignal?: number;
 }
 
-export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreateDependency, onDeleteDependency, onMoveNode, onUpdateDates, onUpdateStatus, canEditStructure, onValidationError, todaySignal, scale, onMoveComplete }: GanttCanvasProps) {
+export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreateDependency, onDeleteDependency, onMoveNode, onUpdateDates, onUpdateStatus, canEditStructure, onValidationError, todaySignal, scale, onMoveComplete, collapseAllSignal }: GanttCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pendingDeleteLinkId, setPendingDeleteLinkId] = useState<string | null>(null);
   const [deletingLink, setDeletingLink] = useState(false);
@@ -315,6 +324,13 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       saveCollapsed(collapsedSet);
     });
 
+    const scrollEvent = gantt.attachEvent('onGanttScroll', () => {
+      try {
+        const state = gantt.getState();
+        if (state.min_date) localStorage.setItem(SCROLL_DATE_KEY, String(state.min_date));
+      } catch { /* ignore */ }
+    });
+
     return () => {
       gantt.detachEvent(selectEvent);
       gantt.detachEvent(linkAddEvent);
@@ -323,6 +339,7 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       gantt.detachEvent(moveEvent);
       gantt.detachEvent(collapsedOpen);
       gantt.detachEvent(collapsedClosed);
+      gantt.detachEvent(scrollEvent);
       gantt.clearAll();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo reinicializar si cambian permisos; scale se maneja en efecto separado
@@ -335,6 +352,7 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       const ganttData = toGanttData(nodesRef.current, dependenciesRef.current, collapsed);
       isParsingRef.current = true;
       gantt.parse(ganttData);
+      restoreScrollPosition();
       setTimeout(() => { isParsingRef.current = false; }, 0);
       gantt.render();
     } catch { /* gantt no inicializado */ }
@@ -349,6 +367,7 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     isParsingRef.current = true;
     gantt.clearAll();
     gantt.parse(ganttData);
+    restoreScrollPosition();
     // Resetear el flag tras el ciclo de eventos para evitar carrera.
     setTimeout(() => { isParsingRef.current = false; }, 0);
   }, [nodes, dependencies]);
@@ -358,6 +377,13 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     const date = new Date().toISOString().slice(0, 10);
     try { gantt.showDate(new Date(date)); } catch { /* gantt not initialized */ }
   }, [todaySignal]);
+
+  useEffect(() => {
+    if (!collapseAllSignal) return;
+    try {
+      gantt.eachTask((task: { id: string | number }) => gantt.close(String(task.id)));
+    } catch { /* gantt no inicializado */ }
+  }, [collapseAllSignal]);
 
   // V-02 fix: re-calculate sizes when the container resizes (detail panel toggling,
   // backlog open/close, filter changes that shrink the gantt area).
