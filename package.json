@@ -47,7 +47,7 @@
     "migration:openproject": "node tools/openproject-migration.mjs",
     "migration:openproject:write": "node tools/openproject-migration.mjs --write",
     "migration:openproject:apply": "deno run --allow-read --allow-env --allow-net tools/openproject-import.ts --apply",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "devDependencies": {
     "supabase": "^2.98.2"
