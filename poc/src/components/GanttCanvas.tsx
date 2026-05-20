@@ -239,7 +239,7 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       gantt.detachEvent(moveEvent);
       gantt.clearAll();
     };
-  }, [canEditStructure]);
+  }, [canEditStructure, scale]);
 
   useEffect(() => {
     try {

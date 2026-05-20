@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 
 test('debug what user sees at /gantt', async ({ page }) => {
   test.setTimeout(45_000);
