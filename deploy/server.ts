@@ -96,7 +96,7 @@ function serviceWorkerResponse(): Response {
   ];
 
   const body = `
-const CACHE_NAME = 'abax-gantt-v6';
+const CACHE_NAME = 'abax-gantt-v7';
 const SHELL_URLS = ${jsonForScript(shellUrls)};
 
 self.addEventListener('install', (event) => {
