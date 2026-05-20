@@ -10,11 +10,11 @@
 ```
 Internet → Cloudflare Tunnel → Traefik → abax-gantt (Deno, puerto 8000)
                                               │
-                                         shared-postgres (DB: abax_gantt)
+                                         <postgres-host> (DB: abax_gantt)
 
 Authentik ────┐
               ├── Traefik → auth.breisner.info → authentik-server:9000
-              └── mismo shared-postgres (DB: authentik)
+              └── mismo <postgres-host> (DB: authentik)
 ```
 
 **Una sola máquina, todo Docker.** No hay Kubernetes, no hay Supabase Cloud.
@@ -27,8 +27,8 @@ Authentik ────┐
 |---------|-----|
 | **ABAX Gantt** | `https://demo.breisner.info/abax-gantt` |
 | **Authentik Admin** | `https://auth.breisner.info` |
-| Admin user | `akadmin` / `root@example.com` |
-| PostgreSQL | `shared-postgres:5432`, DB `abax_gantt`, user `abax` / pass `abax` |
+| Admin user | `admin` / `admin@example.com` |
+| PostgreSQL | `<postgres-host>:5432`, DB `abax_gantt`, user `abax` / pass `abax` |
 
 ---
 
@@ -54,22 +54,22 @@ curl -sk https://demo.breisner.info/abax-gantt/api/health
 docker stop abax-gantt && docker rm abax-gantt
 
 # Reconstruir y desplegar (desde /workspace/abax-gantt)
-docker build -f deploy/Dockerfile \
-  --build-arg VITE_AUTHENTIK_AUTHORITY="https://auth.breisner.info/application/o/abax-gantt/" \
-  --build-arg VITE_AUTHENTIK_CLIENT_ID="abax-gantt-spa" \
-  --build-arg VITE_AUTHENTIK_REDIRECT_URI="https://demo.breisner.info/abax-gantt/auth/callback" \
-  --build-arg VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI="https://demo.breisner.info/abax-gantt/login" \
-  --build-arg VITE_API_BASE_URL="/abax-gantt" \
-  -t abax-gantt:latest .
+docker build -f deploy/Dockerfile -t abax-gantt:latest .
 
 docker run -d --name abax-gantt \
   --network infra-net \
-  -e DATABASE_URL="postgresql://abax:abax@shared-postgres:5432/abax_gantt" \
+  -e DATABASE_URL="postgresql://abax:<password>@<host>:5432/abax_gantt" \
   -e AUTHENTIK_ISSUER="https://auth.breisner.info/application/o/abax-gantt/" \
   -e AUTHENTIK_CLIENT_ID="abax-gantt-spa" \
   -e AUTHENTIK_JWKS_URL="https://auth.breisner.info/application/o/abax-gantt/jwks/" \
   -e STORAGE_PATH="/app/data/attachments" \
   -e ADMIN_GROUP="abax-admins" \
+  -e PUBLIC_AUTHENTIK_AUTHORITY="https://auth.breisner.info/application/o/abax-gantt/" \
+  -e PUBLIC_AUTHENTIK_CLIENT_ID="abax-gantt-spa" \
+  -e PUBLIC_AUTHENTIK_REDIRECT_URI="https://demo.breisner.info/abax-gantt/auth/callback" \
+  -e PUBLIC_AUTHENTIK_POST_LOGOUT_REDIRECT_URI="https://demo.breisner.info/abax-gantt/login" \
+  -e PUBLIC_BASE_PATH="/abax-gantt/" \
+  -e PUBLIC_API_BASE_URL="/abax-gantt" \
   abax-gantt:latest
 ```
 
@@ -102,7 +102,7 @@ abax-gantt/
 
 ### 5.1 Preparación
 
-1. Entrá a `https://auth.breisner.info` como `akadmin`.
+1. Entrá a `https://auth.breisner.info` como `admin`.
 2. Creá 2 usuarios más en **Directory → Users → Create**:
    - `responsable@test.com` (sin grupo)
    - `ejecutor@test.com` (sin grupo)
@@ -200,7 +200,7 @@ Helpers disponibles en `_shared/`:
 - [x] Panel detalle: info, responsables, ejecutores, avance, horas, presupuesto, adjuntos (UAT smoke §6, §8, §10)
 - [x] Export JSON y CSV (UAT smoke §9)
 - [x] Admin: invitar usuario, activar/desactivar (UAT smoke §11)
-- [x] Login/logout con Authentik (provider con scopes configurado, akadmin en abax-admins)
+- [x] Login/logout con Authentik (provider con scopes configurado, admin en abax-admins)
 - [x] 0 errores en `docker logs abax-gantt | grep -i error` (rebuild post-fixes)
 - [x] 0 errores en consola del navegador (api paths normalizados)
 - [x] Bugs documentados en `docs/bugs-uat.md` (14 bugs encontrados, todos arreglados)

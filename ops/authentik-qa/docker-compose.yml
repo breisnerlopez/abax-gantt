@@ -5,10 +5,10 @@ services:
     restart: unless-stopped
     command: server
     environment:
-      AUTHENTIK_SECRET_KEY: "qa-test-secret-key-min-50-chars-long-for-authentik-dev"
-      AUTHENTIK_BOOTSTRAP_PASSWORD: "AbaxQATest2026!"
-      AUTHENTIK_BOOTSTRAP_EMAIL: "admin@abax-qa.local"
-      AUTHENTIK_BOOTSTRAP_TOKEN: "qa-bootstrap-token-2026-abax"
+      AUTHENTIK_SECRET_KEY: "<generate-secure-secret-key>"
+      AUTHENTIK_BOOTSTRAP_PASSWORD: "<bootstrappassword>"
+      AUTHENTIK_BOOTSTRAP_EMAIL: "admin@qa-test.local"
+      AUTHENTIK_BOOTSTRAP_TOKEN: "<bootstrap-token>"
       AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
       AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
     volumes:
@@ -27,7 +27,7 @@ services:
     restart: unless-stopped
     command: worker
     environment:
-      AUTHENTIK_SECRET_KEY: "qa-test-secret-key-min-50-chars-long-for-authentik-dev"
+      AUTHENTIK_SECRET_KEY: "<generate-secure-secret-key>"
       AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
     volumes:
       - authentik-test-media:/media

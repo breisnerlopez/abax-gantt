@@ -3,7 +3,7 @@ services:
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: abax
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-abax_secret}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD requerido}
       POSTGRES_DB: abax
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -16,7 +16,7 @@ services:
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: abax
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-abax_secret}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD requerido}
       POSTGRES_DB: authentik
     volumes:
       - authpgdata:/var/lib/postgresql/data
@@ -32,12 +32,12 @@ services:
   authentik-server:
     image: ghcr.io/goauthentik/server:latest
     environment:
-      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:-change-me-generate-real-secret}
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?AUTHENTIK_SECRET_KEY requerido}
       AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
       AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
       AUTHENTIK_POSTGRESQL__NAME: authentik
       AUTHENTIK_POSTGRESQL__USER: abax
-      AUTHENTIK_POSTGRESQL__PASSWORD: ${DB_PASSWORD:-abax_secret}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${DB_PASSWORD:?DB_PASSWORD requerido}
       AUTHENTIK_REDIS__HOST: authentik-redis
     volumes:
       - media:/media
@@ -55,12 +55,12 @@ services:
     image: ghcr.io/goauthentik/server:latest
     command: worker
     environment:
-      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:-change-me-generate-real-secret}
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?AUTHENTIK_SECRET_KEY requerido}
       AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
       AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
       AUTHENTIK_POSTGRESQL__NAME: authentik
       AUTHENTIK_POSTGRESQL__USER: abax
-      AUTHENTIK_POSTGRESQL__PASSWORD: ${DB_PASSWORD:-abax_secret}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${DB_PASSWORD:?DB_PASSWORD requerido}
       AUTHENTIK_REDIS__HOST: authentik-redis
     volumes:
       - media:/media
@@ -75,21 +75,20 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
-      args:
-        VITE_AUTHENTIK_AUTHORITY: ${VITE_AUTHENTIK_AUTHORITY:-http://localhost:9000/application/o/abax-gantt/}
-        VITE_AUTHENTIK_CLIENT_ID: ${VITE_AUTHENTIK_CLIENT_ID:-${AUTHENTIK_CLIENT_ID:-abax-gantt-spa}}
-        VITE_AUTHENTIK_REDIRECT_URI: ${VITE_AUTHENTIK_REDIRECT_URI:-http://localhost:8000/auth/callback}
-        VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI: ${VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI:-http://localhost:8000/login}
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
-        VITE_BASE_PATH: ${VITE_BASE_PATH:-/}
     environment:
-      DATABASE_URL: postgresql://abax:${DB_PASSWORD:-abax_secret}@postgres:5432/abax
+      DATABASE_URL: postgresql://abax:${DB_PASSWORD:?DB_PASSWORD requerido}@postgres:5432/abax
       AUTHENTIK_ISSUER: ${AUTHENTIK_ISSUER:-http://localhost:9000/application/o/abax-gantt/}
       AUTHENTIK_CLIENT_ID: ${AUTHENTIK_CLIENT_ID:-abax-gantt-spa}
       AUTHENTIK_JWKS_URL: ${AUTHENTIK_JWKS_URL:-http://authentik-server:9000/application/o/abax-gantt/jwks/}
       STORAGE_PATH: /app/data/attachments
       ADMIN_GROUP: ${ADMIN_GROUP:-abax-admins}
       AUTH_MODE: bundled
+      PUBLIC_AUTHENTIK_AUTHORITY: ${PUBLIC_AUTHENTIK_AUTHORITY:-http://localhost:9000/application/o/abax-gantt/}
+      PUBLIC_AUTHENTIK_CLIENT_ID: ${PUBLIC_AUTHENTIK_CLIENT_ID:-${AUTHENTIK_CLIENT_ID:-abax-gantt-spa}}
+      PUBLIC_AUTHENTIK_REDIRECT_URI: ${PUBLIC_AUTHENTIK_REDIRECT_URI:-http://localhost:8000/auth/callback}
+      PUBLIC_AUTHENTIK_POST_LOGOUT_REDIRECT_URI: ${PUBLIC_AUTHENTIK_POST_LOGOUT_REDIRECT_URI:-http://localhost:8000/login}
+      PUBLIC_BASE_PATH: ${PUBLIC_BASE_PATH:-/}
+      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-}
     ports:
       - "8000:8000"
     volumes:

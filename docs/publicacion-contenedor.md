@@ -2,7 +2,7 @@
 
 Fecha de referencia: 2026-05-19
 
-Esta guía documenta el flujo operativo para publicar `abax-gantt:latest` en el entorno actual `https://demo.breisner.info/abax-gantt`.
+Esta guía documenta el flujo operativo para publicar la imagen genérica de ABAX Gantt en el entorno actual `https://demo.breisner.info/abax-gantt`.
 
 ## 1. Estado Actual
 
@@ -41,7 +41,7 @@ Traefik remueve `/abax-gantt` antes de enviar la petición al contenedor.
 
 ## 3. Variables Requeridas
 
-El deploy productivo necesita variables de runtime y variables de build del frontend.
+El deploy productivo necesita variables runtime del backend y variables públicas runtime del frontend.
 
 Runtime del contenedor:
 
@@ -53,18 +53,18 @@ AUTHENTIK_JWKS_URL=https://auth.breisner.info/application/o/abax-gantt/jwks/
 ADMIN_GROUP=abax-admins
 ```
 
-Build del frontend:
+Runtime público del frontend:
 
 ```env
-VITE_AUTHENTIK_AUTHORITY=https://auth.breisner.info/application/o/abax-gantt/
-VITE_AUTHENTIK_CLIENT_ID=abax-gantt-spa
-VITE_AUTHENTIK_REDIRECT_URI=https://demo.breisner.info/abax-gantt/auth/callback
-VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI=https://demo.breisner.info/abax-gantt/login
-VITE_BASE_PATH=/abax-gantt/
-VITE_API_BASE_URL=/abax-gantt
+PUBLIC_AUTHENTIK_AUTHORITY=https://auth.breisner.info/application/o/abax-gantt/
+PUBLIC_AUTHENTIK_CLIENT_ID=abax-gantt-spa
+PUBLIC_AUTHENTIK_REDIRECT_URI=https://demo.breisner.info/abax-gantt/auth/callback
+PUBLIC_AUTHENTIK_POST_LOGOUT_REDIRECT_URI=https://demo.breisner.info/abax-gantt/login
+PUBLIC_BASE_PATH=/abax-gantt/
+PUBLIC_API_BASE_URL=/abax-gantt
 ```
 
-`VITE_BASE_PATH=/abax-gantt/` y `VITE_API_BASE_URL=/abax-gantt` son críticos para subpath. Si falta el API base, el frontend puede llamar a `/api/*`; esa ruta no entra al router de Traefik y produce 404. Si falta el base path, los assets pueden resolverse en una ruta pública incorrecta.
+`PUBLIC_BASE_PATH=/abax-gantt/` y `PUBLIC_API_BASE_URL=/abax-gantt` son críticos para subpath. Si falta el API base, el frontend puede llamar a `/api/*`; esa ruta no entra al router de Traefik y produce 404. Si falta el base path, React Router, service worker y callbacks pueden resolverse contra una ruta pública incorrecta.
 
 ## 4. Preparar `.env` Productivo
 
@@ -78,17 +78,17 @@ cp .env.production .env
 Verificar que `.env` tenga, como mínimo:
 
 ```env
-DATABASE_URL=postgresql://abax:abax@shared-postgres:5432/abax_gantt
+DATABASE_URL=postgresql://abax:<password>@<host>:5432/abax_gantt
 AUTHENTIK_ISSUER=https://auth.breisner.info/application/o/abax-gantt/
 AUTHENTIK_CLIENT_ID=abax-gantt-spa
 AUTHENTIK_JWKS_URL=https://auth.breisner.info/application/o/abax-gantt/jwks/
 ADMIN_GROUP=abax-admins
-VITE_AUTHENTIK_AUTHORITY=https://auth.breisner.info/application/o/abax-gantt/
-VITE_AUTHENTIK_CLIENT_ID=abax-gantt-spa
-VITE_AUTHENTIK_REDIRECT_URI=https://demo.breisner.info/abax-gantt/auth/callback
-VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI=https://demo.breisner.info/abax-gantt/login
-VITE_BASE_PATH=/abax-gantt/
-VITE_API_BASE_URL=/abax-gantt
+PUBLIC_AUTHENTIK_AUTHORITY=https://auth.breisner.info/application/o/abax-gantt/
+PUBLIC_AUTHENTIK_CLIENT_ID=abax-gantt-spa
+PUBLIC_AUTHENTIK_REDIRECT_URI=https://demo.breisner.info/abax-gantt/auth/callback
+PUBLIC_AUTHENTIK_POST_LOGOUT_REDIRECT_URI=https://demo.breisner.info/abax-gantt/login
+PUBLIC_BASE_PATH=/abax-gantt/
+PUBLIC_API_BASE_URL=/abax-gantt
 ```
 
 No versionar `deploy/.env` si contiene credenciales reales.
@@ -111,7 +111,7 @@ docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 
 Este comando:
 
-- Construye `abax-gantt:latest` con los build args del frontend.
+- Construye o descarga `abax-gantt` y configura el frontend desde variables runtime.
 - Recrea el contenedor con nombre fijo `abax-gantt`.
 - Reutiliza el volumen externo `abax-gantt_attachments`.
 - Mantiene el servicio en la red `infra-net`.
@@ -129,17 +129,17 @@ Si el `.env` todavía no existe, se pueden tomar los valores del contenedor desp
 
 ```bash
 cd /workspace/abax-gantt/deploy
-DATABASE_URL='postgresql://abax:abax@shared-postgres:5432/abax_gantt' \
+DATABASE_URL='postgresql://abax:<password>@<host>:5432/abax_gantt' \
 AUTHENTIK_ISSUER='https://auth.breisner.info/application/o/abax-gantt/' \
 AUTHENTIK_CLIENT_ID='abax-gantt-spa' \
 AUTHENTIK_JWKS_URL='https://auth.breisner.info/application/o/abax-gantt/jwks/' \
 ADMIN_GROUP='abax-admins' \
-VITE_AUTHENTIK_AUTHORITY='https://auth.breisner.info/application/o/abax-gantt/' \
-VITE_AUTHENTIK_CLIENT_ID='abax-gantt-spa' \
-VITE_AUTHENTIK_REDIRECT_URI='https://demo.breisner.info/abax-gantt/auth/callback' \
-VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI='https://demo.breisner.info/abax-gantt/login' \
-VITE_BASE_PATH='/abax-gantt/' \
-VITE_API_BASE_URL='/abax-gantt' \
+PUBLIC_AUTHENTIK_AUTHORITY='https://auth.breisner.info/application/o/abax-gantt/' \
+PUBLIC_AUTHENTIK_CLIENT_ID='abax-gantt-spa' \
+PUBLIC_AUTHENTIK_REDIRECT_URI='https://demo.breisner.info/abax-gantt/auth/callback' \
+PUBLIC_AUTHENTIK_POST_LOGOUT_REDIRECT_URI='https://demo.breisner.info/abax-gantt/login' \
+PUBLIC_BASE_PATH='/abax-gantt/' \
+PUBLIC_API_BASE_URL='/abax-gantt' \
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
@@ -171,8 +171,8 @@ Un `401` en rutas protegidas confirma que Traefik llegó al backend. Un `404` in
 
 | Síntoma | Causa probable | Acción |
 |---------|----------------|--------|
-| Frontend llama a `/api/*` | Falta `VITE_API_BASE_URL=/abax-gantt` en build | Reconstruir con `--build` y variables correctas |
-| Assets 404 bajo subpath | Falta `VITE_BASE_PATH=/abax-gantt/` en build | Reconstruir imagen con build arg correcto |
+| Frontend llama a `/api/*` | Falta `PUBLIC_API_BASE_URL=/abax-gantt` | Ajustar `.env` y recrear contenedor |
+| Rutas SPA/callback bajo subpath fallan | Falta `PUBLIC_BASE_PATH=/abax-gantt/` | Ajustar `.env` y recrear contenedor |
 | `/abax-gantt/api/health` da 404 | Traefik no enruta o no aplica strip prefix | Revisar labels y middleware `abax-gantt-strip` |
 | `/abax-gantt/api/projects` da 401 | Normal sin token | Probar con sesión válida en navegador |
 | SPA `/login` o `/gantt` da 404 | Fallback SPA roto | Revisar `deploy/server.ts` y build frontend |
@@ -204,10 +204,10 @@ docker tag abax-gantt:latest abax-gantt:backup-$(date +%Y%m%d-%H%M)
 ## 10. Checklist Antes de Publicar
 
 - `deploy/.env` existe y contiene valores reales.
-- `VITE_API_BASE_URL=/abax-gantt` está definido.
-- `VITE_BASE_PATH=/abax-gantt/` está definido.
-- `VITE_AUTHENTIK_REDIRECT_URI` apunta a `/abax-gantt/auth/callback`.
-- `VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI` apunta a `/abax-gantt/login`.
+- `PUBLIC_API_BASE_URL=/abax-gantt` está definido.
+- `PUBLIC_BASE_PATH=/abax-gantt/` está definido.
+- `PUBLIC_AUTHENTIK_REDIRECT_URI` apunta a `/abax-gantt/auth/callback`.
+- `PUBLIC_AUTHENTIK_POST_LOGOUT_REDIRECT_URI` apunta a `/abax-gantt/login`.
 - La red externa `infra-net` existe.
 - El volumen externo `abax-gantt_attachments` existe.
 - `docker compose -f docker-compose.prod.yml --env-file .env config` no muestra variables vacías.
@@ -226,27 +226,10 @@ Publicación automática:
 | Tag `v*` | Publica `ghcr.io/<owner>/<repo>:vX.Y.Z` y `:sha-<commit>` |
 | Manual (`workflow_dispatch`) | Ejecuta el mismo workflow |
 
-Variables recomendadas en GitHub Actions:
-
-```env
-VITE_AUTHENTIK_AUTHORITY=https://auth.breisner.info/application/o/abax-gantt/
-VITE_AUTHENTIK_CLIENT_ID=abax-gantt-spa
-VITE_AUTHENTIK_REDIRECT_URI=https://demo.breisner.info/abax-gantt/auth/callback
-VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI=https://demo.breisner.info/abax-gantt/login
-VITE_BASE_PATH=/abax-gantt/
-VITE_API_BASE_URL=/abax-gantt
-```
-
-El frontend queda compilado dentro de la imagen, por lo que el tag publicado debe corresponder al host/subpath destino. Para el entorno actual, el build equivalente manual es:
+El workflow no necesita variables de dominio/Auth: la imagen publicada es genérica y esos valores se pasan al contenedor con `PUBLIC_*`. Build manual:
 
 ```bash
 docker build -f deploy/Dockerfile -t abax-gantt:latest \
-  --build-arg VITE_AUTHENTIK_AUTHORITY=https://auth.breisner.info/application/o/abax-gantt/ \
-  --build-arg VITE_AUTHENTIK_CLIENT_ID=abax-gantt-spa \
-  --build-arg VITE_AUTHENTIK_REDIRECT_URI=https://demo.breisner.info/abax-gantt/auth/callback \
-  --build-arg VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI=https://demo.breisner.info/abax-gantt/login \
-  --build-arg VITE_BASE_PATH=/abax-gantt/ \
-  --build-arg VITE_API_BASE_URL=/abax-gantt \
   .
 ```
 
@@ -257,4 +240,4 @@ docker tag abax-gantt:latest <registry>/<namespace>/abax-gantt:<version>
 docker push <registry>/<namespace>/abax-gantt:<version>
 ```
 
-Para despliegues en raíz de dominio, publicar otra imagen construida con `VITE_BASE_PATH=/` y `VITE_API_BASE_URL=`.
+Para despliegues en raíz de dominio, usar la misma imagen con `PUBLIC_BASE_PATH=/` y `PUBLIC_API_BASE_URL=`.

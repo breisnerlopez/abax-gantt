@@ -275,4 +275,4 @@ Carga inicial: ~310 kB JS + 168 kB CSS. DHTMLX se carga bajo demanda al entrar a
 3. **Monitoreo** — health checks externos sobre `/abax-gantt/api/health` y alertas de contenedor/DB.
 4. **E2E profundo** — Playwright con DHTMLX real (arrastrar, crear dependencias, mover tareas en el Gantt).
 5. **Iconos PWA** — generar `icon-192.png` y `icon-512.png` reales.
-6. **CI/CD** — pipeline en `.github/workflows/ci.yml` ya creado; activar en GitHub Actions con secrets y build args Docker.
+6. **CI/CD** — pipeline en `.github/workflows/ci.yml` ya creado; la imagen Docker es genérica y se configura con variables runtime `PUBLIC_*`.

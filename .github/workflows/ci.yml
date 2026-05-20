@@ -117,10 +117,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            VITE_AUTHENTIK_AUTHORITY=${{ vars.VITE_AUTHENTIK_AUTHORITY || 'https://auth.breisner.info/application/o/abax-gantt/' }}
-            VITE_AUTHENTIK_CLIENT_ID=${{ vars.VITE_AUTHENTIK_CLIENT_ID || 'abax-gantt-spa' }}
-            VITE_AUTHENTIK_REDIRECT_URI=${{ vars.VITE_AUTHENTIK_REDIRECT_URI || 'https://demo.breisner.info/abax-gantt/auth/callback' }}
-            VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI=${{ vars.VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI || 'https://demo.breisner.info/abax-gantt/login' }}
-            VITE_BASE_PATH=${{ vars.VITE_BASE_PATH || '/abax-gantt/' }}
-            VITE_API_BASE_URL=${{ vars.VITE_API_BASE_URL || '/abax-gantt' }}

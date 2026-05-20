@@ -14,7 +14,7 @@ from django.test import RequestFactory
 
 def mint(username):
     rf = RequestFactory()
-    req = rf.get('/', HTTP_HOST='auth.breisner.info', secure=True)
+    req = rf.get('/', HTTP_HOST='<authentik-host>', secure=True)
     user = User.objects.get(username=username)
     req.user = user
     provider = OAuth2Provider.objects.get(client_id='abax-gantt-spa')

@@ -1,9 +1,8 @@
 import type { ApiEnvelope, Attachment, BudgetReport, Dependency, DependencyType, NodeType, PortfolioData, Profile, Project, Summary, TaskAssignee, WbsNode } from './types';
+import { config } from './runtimeConfig';
 
-const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-const appBaseUrl = import.meta.env.BASE_URL === '/' ? '' : import.meta.env.BASE_URL.replace(/\/$/, '');
-const API_BASE_URL = configuredApiBaseUrl ?? appBaseUrl;
-const DEV_TOKEN = import.meta.env.VITE_DEV_AUTH_TOKEN ?? '';
+const API_BASE_URL = config.apiBaseUrl;
+const DEV_TOKEN = config.devAuthToken;
 
 export function apiUrl(path: string): string {
   return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;

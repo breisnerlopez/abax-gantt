@@ -1,210 +1,185 @@
 # ABAX Gantt
 
-ABAX Gantt es una aplicación web para gestión de portafolio, WBS y cronogramas Gantt. El artefacto publicable actual es una imagen Docker única que sirve frontend React/Vite, API Deno, migraciones PostgreSQL y storage local de adjuntos.
+Gestor de portafolio, WBS y cronogramas Gantt auto-contenido en una imagen Docker. Un solo proceso Deno sirve la API REST, el frontend SPA (React + DHTMLX Gantt), aplica migraciones PostgreSQL y gestiona adjuntos locales. Autenticación vía OIDC con Authentik.
 
-## Estado Actual
+## Demo
 
-| Área | Estado |
-|------|--------|
-| Frontend | React + DHTMLX Gantt, build Vite |
-| Backend | Deno HTTP server en `deploy/server.ts` |
-| API | `/api/*` servida dentro del mismo contenedor |
-| Base de datos | PostgreSQL con migraciones en `supabase/migrations/` |
-| Auth | Authentik OIDC/OAuth2 con validación JWKS |
-| Storage | Volumen local `/app/data/attachments` |
-| Despliegue actual | `https://demo.breisner.info/abax-gantt` |
-| Dataset actual | Migración OpenProject importada |
+[https://demo.breisner.info/abax-gantt](https://demo.breisner.info/abax-gantt)
 
-Documentos operativos principales:
-
-| Documento | Uso |
-|-----------|-----|
-| `docs/publicacion-contenedor.md` | Runbook de publicación Docker del entorno actual |
-| `deploy/README-INSTALL.md` | Guía de instalación y operación del contenedor |
-| `docs/estado-despliegue.md` | Estado técnico del despliegue actual |
-| `docs/imports/openproject-migration/REVISION.md` | Migración OpenProject aplicada |
-
-## Arquitectura
-
-```text
-abax-gantt:latest
-├── Deno server :8000
-│   ├── /api/*       API REST
-│   ├── /storage/*   Adjuntos locales
-│   └── /*           SPA React/Vite
-├── PostgreSQL       externo o bundled
-└── Authentik        externo o bundled
-```
-
-En el despliegue actual, Traefik publica la app bajo `/abax-gantt` y remueve ese prefijo antes de enviar tráfico al contenedor.
-
-## Build de Imagen Docker
-
-Desde la raíz del repositorio:
+## Quick Start
 
 ```bash
-docker build -f deploy/Dockerfile -t abax-gantt:latest \
-  --build-arg VITE_AUTHENTIK_AUTHORITY=https://auth.example.com/application/o/abax-gantt/ \
-  --build-arg VITE_AUTHENTIK_CLIENT_ID=abax-gantt-spa \
-  --build-arg VITE_AUTHENTIK_REDIRECT_URI=https://demo.example.com/abax-gantt/auth/callback \
-  --build-arg VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI=https://demo.example.com/abax-gantt/login \
-  --build-arg VITE_BASE_PATH=/abax-gantt/ \
-  --build-arg VITE_API_BASE_URL=/abax-gantt \
-  .
+docker pull ghcr.io/breisnerlopez/abax-gantt:v0.1.0
+
+docker run --rm --name abax-gantt -p 8000:8000 \
+  -e DATABASE_URL='postgresql://abax:<password>@<host>:5432/abax_gantt' \
+  -e AUTHENTIK_ISSUER='https://auth.example.com/application/o/abax-gantt/' \
+  -e AUTHENTIK_CLIENT_ID='abax-gantt-spa' \
+  -e AUTHENTIK_JWKS_URL='https://auth.example.com/application/o/abax-gantt/jwks/' \
+  -e PUBLIC_AUTHENTIK_AUTHORITY='https://auth.example.com/application/o/abax-gantt/' \
+  -e PUBLIC_AUTHENTIK_CLIENT_ID='abax-gantt-spa' \
+  -e PUBLIC_AUTHENTIK_REDIRECT_URI='https://gantt.example.com/auth/callback' \
+  -e PUBLIC_AUTHENTIK_POST_LOGOUT_REDIRECT_URI='https://gantt.example.com/login' \
+  -e PUBLIC_BASE_PATH='/' \
+  -e PUBLIC_API_BASE_URL='' \
+  -v abax-gantt_data:/app/data/attachments \
+  -d ghcr.io/breisnerlopez/abax-gantt:v0.1.0
 ```
 
-Para servir en la raíz del dominio, usar:
+Accede en `http://localhost:8000`. El primer usuario que haga login con grupo `abax-admins` obtiene rol admin.
 
-```bash
---build-arg VITE_BASE_PATH=/
---build-arg VITE_API_BASE_URL=
-```
-
-`VITE_BASE_PATH` controla rutas de assets del frontend. `VITE_API_BASE_URL` controla a qué prefijo llama el cliente para `/api/*`.
-
-## Publicación Productiva Actual
-
-El despliegue actual se opera desde `deploy/docker-compose.prod.yml`:
+### Docker Compose
 
 ```bash
 cd deploy
-cp .env.production .env
-# Editar DATABASE_URL y valores reales.
-docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+cp .env.example .env
+# Editar DATABASE_URL y valores de Authentik
+docker compose -f docker-compose.external.yml up -d
 ```
 
-Verificación:
+Modos disponibles: `docker-compose.external.yml` (infraestructura propia), `docker-compose.bundled.yml` (todo incluido: PostgreSQL + Authentik + ABAX).
+
+## Configuración
+
+La imagen es genérica: dominio público, subpath y Authentik se configuran con variables `PUBLIC_*` al arrancar. No hace falta reconstruir para cambiar de dominio.
+
+### Variables Runtime — Backend
+
+| Variable | Descripción | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | Conexión PostgreSQL | Requerido |
+| `AUTHENTIK_ISSUER` | Issuer OIDC para validación JWT | Requerido |
+| `AUTHENTIK_CLIENT_ID` | Client ID OIDC esperado | Requerido |
+| `AUTHENTIK_JWKS_URL` | JWKS para validar tokens | Requerido |
+| `ADMIN_GROUP` | Grupo Authentik con rol admin | `abax-admins` |
+| `STORAGE_PATH` | Directorio de adjuntos | `/app/data/attachments` |
+| `PORT` | Puerto HTTP del servidor | `8000` |
+
+### Variables Runtime — Frontend Público
+
+| Variable | Descripción | Default |
+|----------|-------------|---------|
+| `PUBLIC_BASE_PATH` | Subpath de la app (`/` o `/abax-gantt/`) | `/` |
+| `PUBLIC_API_BASE_URL` | Prefijo público de la API | derivado de `PUBLIC_BASE_PATH` |
+| `PUBLIC_AUTHENTIK_AUTHORITY` | Authority OIDC para el frontend | — |
+| `PUBLIC_AUTHENTIK_CLIENT_ID` | Client ID para el frontend | — |
+| `PUBLIC_AUTHENTIK_REDIRECT_URI` | URL de callback post-login | derivado de `PUBLIC_BASE_PATH` |
+| `PUBLIC_AUTHENTIK_POST_LOGOUT_REDIRECT_URI` | URL post logout | derivado de `PUBLIC_BASE_PATH` |
+
+### Subpath
+
+Para servir bajo `/abax-gantt`:
+
+| Variable | Valor |
+|----------|-------|
+| `PUBLIC_BASE_PATH` | `/abax-gantt/` |
+| `PUBLIC_API_BASE_URL` | `/abax-gantt` |
+| `PUBLIC_AUTHENTIK_REDIRECT_URI` | `https://<dominio>/abax-gantt/auth/callback` |
+| `PUBLIC_AUTHENTIK_POST_LOGOUT_REDIRECT_URI` | `https://<dominio>/abax-gantt/login` |
+
+El proxy reverso debe remover el prefijo antes de forwardear (Traefik: `stripprefix`; Nginx: `proxy_pass` sin path).
+
+### Authentik
+
+Configurar en Authentik:
+
+| Campo | Valor |
+|-------|-------|
+| Client type | Public |
+| Grant type | Authorization Code + PKCE |
+| Scopes | `openid email profile groups` |
+| Redirect URI | `https://<dominio>/<subpath>/auth/callback` |
+| Post-logout URI | `https://<dominio>/<subpath>/login` |
+
+Crear grupo `abax-admins` (o el definido en `ADMIN_GROUP`) y asignarlo a usuarios admin.
+
+## Persistencia y Backup
+
+### Volúmenes
+
+| Volumen | Montaje | Contenido |
+|---------|---------|-----------|
+| `abax-gantt_data` | `/app/data/attachments` | Adjuntos subidos por usuarios |
+
+### Backup
 
 ```bash
-curl -fsS https://demo.breisner.info/abax-gantt/api/health
-curl -fsS -o /dev/null -w '%{http_code}\n' https://demo.breisner.info/abax-gantt/api/projects
+# Base de datos
+pg_dump "$DATABASE_URL" > abax-gantt-$(date +%Y%m%d).sql
+
+# Adjuntos
+tar czf abax-gantt-attachments-$(date +%Y%m%d).tar.gz /app/data/attachments
 ```
 
-Resultado esperado:
+## Tags y Releases
 
-```text
-/api/health -> 200 con {"status":"ok","db":"connected"}
-/api/projects sin token -> 401, no 404
-```
+| Evento | Tags generados |
+|--------|---------------|
+| Push a `main` | `main`, `sha-<commit>`, `latest` |
+| Tag `v*` | `vX.Y.Z`, `sha-<commit>` |
+| Pull request | Build sin push |
 
-## Variables Principales
+No usar `latest` como referencia única de release. Usar tags inmutables (`vX.Y.Z`).
 
-Runtime del contenedor:
-
-| Variable | Descripción |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL usado por API y migraciones |
-| `AUTHENTIK_ISSUER` | Issuer esperado para JWT |
-| `AUTHENTIK_CLIENT_ID` | Audience/client ID esperado |
-| `AUTHENTIK_JWKS_URL` | JWKS para validar tokens |
-| `ADMIN_GROUP` | Grupo Authentik que habilita admin |
-| `STORAGE_PATH` | Ruta de adjuntos, por defecto `/app/data/attachments` |
-
-Build del frontend:
-
-| Variable | Descripción |
-|----------|-------------|
-| `VITE_AUTHENTIK_AUTHORITY` | Authority OIDC usada por el cliente |
-| `VITE_AUTHENTIK_CLIENT_ID` | Client ID usado por el cliente |
-| `VITE_AUTHENTIK_REDIRECT_URI` | Callback público |
-| `VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI` | URL post logout |
-| `VITE_BASE_PATH` | Base de assets Vite, por ejemplo `/` o `/abax-gantt/` |
-| `VITE_API_BASE_URL` | Prefijo público de API, por ejemplo vacío o `/abax-gantt` |
-
-## Desarrollo Local
-
-El flujo histórico de desarrollo local sigue disponible con Supabase CLI y Edge Functions para pruebas de backend, pero el artefacto publicable es el contenedor de `deploy/`.
+## Desarrollo
 
 ```bash
-npm install
+# Instalar dependencias
+npm install && npm --prefix poc install
+
+# Build frontend
 npm run build
-npm run test:unit
-```
 
-Para levantar Supabase local:
+# Lint
+npm run lint
 
-```bash
-npm run db:start
-npm run db:reset
-```
+# Tests unitarios frontend
+npm run smoke:frontend
 
-Para frontend local:
+# E2E con Playwright
+npm run smoke:e2e
 
-```bash
+# Desarrollo local del frontend
 npm --prefix poc run dev
 ```
 
-## Migración OpenProject
-
-El dataset OpenProject ya fue importado en el entorno actual. La documentación y utilidades están en:
-
-```text
-docs/imports/openproject-migration/REVISION.md
-tools/openproject-import.ts
-tools/openproject-migration.mjs
-```
-
-Comandos:
+### Build de Imagen
 
 ```bash
-npm run migration:openproject
-npm run migration:openproject:write
-npm run migration:openproject:apply
+docker build -f deploy/Dockerfile -t abax-gantt:latest .
 ```
 
-## Publicar Imagen en un Registry
+## Arquitectura
 
-El CI publica la imagen en GitHub Container Registry (GHCR) desde `.github/workflows/ci.yml`.
-
-Publicación automática:
-
-| Evento | Acción |
-|--------|--------|
-| Pull request | Build Docker sin push |
-| Push a `main` | Push a GHCR con tags `main`, `sha-<commit>` y `latest` |
-| Tag `v*` | Push a GHCR con tag de versión y `sha-<commit>` |
-| `workflow_dispatch` | Ejecución manual del mismo flujo |
-
-Imagen publicada:
-
-```text
-ghcr.io/<owner>/<repo>:<tag>
+```
+docker pull ghcr.io/breisnerlopez/abax-gantt:v0.1.0
+       │
+       ▼
+┌─────────────────────────────────────────┐
+│  abax-gantt (Deno HTTP :8000)           │
+│  ├── /api/*            API REST         │
+│  ├── /storage/*        Adjuntos locales │
+│  ├── /*                SPA React/Vite   │
+│  ├── /config.js        Runtime config   │
+│  └── /sw.js            Service worker   │
+├─────────────────────────────────────────┤
+│  PostgreSQL            externo o bundled │
+│  Authentik             externo o bundled │
+│  /app/data/attachments  volumen Docker   │
+└─────────────────────────────────────────┘
 ```
 
-Variables recomendadas en GitHub Actions (`Settings` → `Secrets and variables` → `Actions` → `Variables`):
+## Documentación
 
-```env
-VITE_AUTHENTIK_AUTHORITY=https://auth.breisner.info/application/o/abax-gantt/
-VITE_AUTHENTIK_CLIENT_ID=abax-gantt-spa
-VITE_AUTHENTIK_REDIRECT_URI=https://demo.breisner.info/abax-gantt/auth/callback
-VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI=https://demo.breisner.info/abax-gantt/login
-VITE_BASE_PATH=/abax-gantt/
-VITE_API_BASE_URL=/abax-gantt
-```
+| Documento | Contenido |
+|-----------|-----------|
+| `deploy/README-INSTALL.md` | Instalación paso a paso, variables, monitoreo y publicación |
+| `docs/publicacion-contenedor.md` | Runbook operativo de publicación, verificación y rollback |
+| `docs/estado-despliegue.md` | Estado técnico del despliegue actual y bugs corregidos |
+| `docs/api.md` | Referencia de la API REST |
+| `docs/qa-test-suite.md` | Suite de tests y smoke |
+| `docs/imports/openproject-migration/REVISION.md` | Migración OpenProject aplicada |
 
-El workflow tiene defaults para el entorno demo, pero se recomienda declarar las variables explícitamente antes de publicar releases.
+## Licencia
 
-Para publicar manualmente fuera de CI, crear un tag inmutable:
-
-```bash
-docker tag abax-gantt:latest <registry>/<namespace>/abax-gantt:<version>
-docker push <registry>/<namespace>/abax-gantt:<version>
-```
-
-No publicar tags ambiguos como único mecanismo de release. Mantener `latest` solo como conveniencia local.
-
-Para desplegar una imagen ya publicada con `docker-compose.prod.yml`:
-
-```bash
-cd deploy
-ABAX_IMAGE=ghcr.io/<owner>/<repo>:<tag> docker compose -f docker-compose.prod.yml --env-file .env up -d --no-build
-```
-
-## Referencias
-
-- `deploy/README-INSTALL.md`
-- `docs/publicacion-contenedor.md`
-- `docs/estado-despliegue.md`
-- `docs/api.md`
-- `docs/qa-test-suite.md`
-- `docs/imports/openproject-migration/REVISION.md`
+MIT

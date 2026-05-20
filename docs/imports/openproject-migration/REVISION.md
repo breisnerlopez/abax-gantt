@@ -87,7 +87,7 @@ Resultado:
 
 ## Carga Ejecutada
 
-La carga fue aplicada contra PostgreSQL `abax_gantt` en `shared-postgres` usando la red Docker `infra-net`.
+La carga fue aplicada contra PostgreSQL `abax_gantt` en `<postgres-host>` usando la red Docker `infra-net`.
 
 Comando operativo usado:
 
@@ -95,7 +95,7 @@ Comando operativo usado:
 docker run --rm --network infra-net \
   -v /workspace/abax-gantt:/workspace \
   -w /workspace \
-  -e DATABASE_URL='postgresql://abax:abax@shared-postgres:5432/abax_gantt' \
+  -e DATABASE_URL='postgresql://abax:<password>@<host>:5432/abax_gantt' \
   denoland/deno:2.2.0 \
   deno run --no-lock --allow-read --allow-env --allow-net tools/openproject-import.ts --apply
 ```

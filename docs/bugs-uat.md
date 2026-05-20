@@ -164,9 +164,9 @@ Backend en deploy/ usa `/api/export/{id}` (UUID en path). Frontend hacía `/api-
 ### BUG-10 — Frontend default fallback URL `http://localhost:54321/functions/v1`
 **Severidad:** Media · **HU:** US-01, US-02
 
-En `AdminPage.tsx`, si `VITE_API_BASE_URL` no estaba seteado (o quedaba vacío) caía al URL de dev de Supabase. Esto deshabilitaba la página admin en producción.
+En `AdminPage.tsx`, si la base pública de API no estaba seteada correctamente, caía al URL de dev de Supabase. Esto deshabilitaba la página admin en producción.
 
-**Fix:** Default a `''` (relativo al host actual).
+**Fix:** configuración runtime con `PUBLIC_API_BASE_URL` y default relativo al host actual.
 
 ---
 

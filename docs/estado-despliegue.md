@@ -13,15 +13,15 @@
 | Componente | Contenedor | Red | Puerto |
 |-----------|-----------|-----|--------|
 | ABAX Gantt (Deno) | `abax-gantt` | `infra-net` | 8000 |
-| PostgreSQL | `shared-postgres` | `infra-net` | 5432 |
+| PostgreSQL | `<postgres-host>` | `infra-net` | 5432 |
 | Authentik Server | `authentik-server` | `infra-net` | 9000 |
 | Authentik Proxy | `authentik-proxy` | `infra-net` | 9000/9300/9443 |
 | Authentik Worker | `authentik-worker` | `infra-net` | — |
 | Traefik | `secure-traefik` | `infra-net` + `secure-publishing` | 80 (via CF Tunnel) |
 
-**Base de datos:** `abax_gantt` en `shared-postgres` (convención `{marca}_{módulo}`)
+**Base de datos:** `abax_gantt` en `<postgres-host>` (convención `{marca}_{módulo}`)
 
-**Imagen activa:** `abax-gantt:latest`  
+**Imagen activa:** `ghcr.io/breisnerlopez/abax-gantt:v0.1.0`  
 **Volumen adjuntos:** `abax-gantt_attachments:/app/data/attachments`
 
 ---
@@ -33,7 +33,7 @@
 | Provider OAuth2 | `abax-gantt` / `client_id=abax-gantt-spa` |
 | Application | `ABAX Gantt` / slug `abax-gantt` |
 | Grupo admin | `abax-admins` |
-| Usuario admin | `akadmin` (root@example.com) en grupo `abax-admins` |
+| Usuario admin | `admin` (admin@example.com) en grupo `abax-admins` |
 | Redirect URI | `https://demo.breisner.info/abax-gantt/auth/callback` |
 | Post-logout URI | `https://demo.breisner.info/abax-gantt/login` |
 | Issuer mode | `per_provider` |
@@ -62,12 +62,18 @@ El middleware `abax-gantt-strip` remueve el prefijo `/abax-gantt` antes de forwa
 ## 4. Variables de entorno del contenedor
 
 ```env
-DATABASE_URL=postgresql://abax:abax@shared-postgres:5432/abax_gantt
+DATABASE_URL=postgresql://abax:<password>@<host>:5432/abax_gantt
 AUTHENTIK_ISSUER=https://auth.breisner.info/application/o/abax-gantt/
 AUTHENTIK_CLIENT_ID=abax-gantt-spa
 AUTHENTIK_JWKS_URL=https://auth.breisner.info/application/o/abax-gantt/jwks/
 STORAGE_PATH=/app/data/attachments
 ADMIN_GROUP=abax-admins
+PUBLIC_AUTHENTIK_AUTHORITY=https://auth.breisner.info/application/o/abax-gantt/
+PUBLIC_AUTHENTIK_CLIENT_ID=abax-gantt-spa
+PUBLIC_AUTHENTIK_REDIRECT_URI=https://demo.breisner.info/abax-gantt/auth/callback
+PUBLIC_AUTHENTIK_POST_LOGOUT_REDIRECT_URI=https://demo.breisner.info/abax-gantt/login
+PUBLIC_BASE_PATH=/abax-gantt/
+PUBLIC_API_BASE_URL=/abax-gantt
 ```
 
 ---
@@ -99,7 +105,7 @@ ADMIN_GROUP=abax-admins
 | 7 | `Error interno del servidor` (500) | `db.queryObject is not a function` | Reescribo `db.ts` con wrapper `query()` sobre `sql.unsafe()` |
 | 8 | `(intermediate value) is not iterable` | Destructuring `[{rows:...}]` incorrecto | Corregido a `{rows:...}` y `{rows: [x]}` en 20+ handlers |
 | 9 | Tagged template `db.query\`SQL\`` | Incompatible con el wrapper | Convertido a `db.query(\`SQL\`, params)` en assignees.ts y dependencies.ts |
-| 10 | `API_BASE_URL` apuntaba a `localhost:54321` | Default de desarrollo | Seteado a `/abax-gantt` via build arg `VITE_API_BASE_URL` |
+| 10 | `API_BASE_URL` apuntaba a `localhost:54321` | Default de desarrollo | Seteado a `/abax-gantt` via runtime `PUBLIC_API_BASE_URL` |
 | 11 | Rutas API en formato `api-projects` | Formato viejo de Supabase | Cambiadas a `api/projects` en `api.ts` |
 | 12 | Faltaba endpoint `/api/summary` | No implementado en el servidor Deno | Creado `summary.ts` y ruta |
 | 13 | PostgreSQL sin DB `abax_gantt` | DB no creada | Creada con usuario `abax`, schemas `auth`, `extensions`, `storage`, `vault` |
@@ -107,7 +113,7 @@ ADMIN_GROUP=abax-admins
 | 15 | `auth.uid()` no existe | Migración Supabase en PG estándar | Creado stub `auth.uid()` |
 | 16 | `storage.buckets` no existe | Migración Supabase en PG estándar | Creado stub `storage.buckets` |
 | 17 | `vault` schema no existe | Migración Supabase en PG estándar | Creado schema `vault` |
-| 18 | API pública devolvía 404 | Frontend podía llamar a `/api/*` sin subpath; Traefik solo enruta `/abax-gantt/*` | `apiUrl()` deriva `/abax-gantt`, `VITE_API_BASE_URL=/abax-gantt`, compose productivo pasa build args |
+| 18 | API pública devolvía 404 | Frontend podía llamar a `/api/*` sin subpath; Traefik solo enruta `/abax-gantt/*` | `apiUrl()` usa runtime `PUBLIC_API_BASE_URL=/abax-gantt` |
 | 19 | Compose creaba `deploy-abax-gantt-1` | Faltaba alinear `container_name`/volumen con despliegue existente | `docker-compose.prod.yml` usa `container_name: abax-gantt` y volumen externo `abax-gantt_attachments` |
 
 ---
@@ -119,9 +125,9 @@ ADMIN_GROUP=abax-admins
 | Archivo | Cambio |
 |---------|--------|
 | `lib/auth.ts` | Metadata OIDC estática, redirect URIs a `/abax-gantt/`, endpoints dinámicos |
-| `lib/api.ts` | `API_BASE_URL` deriva de `VITE_API_BASE_URL` o del `base` de Vite (`/abax-gantt`), rutas `api/*` en vez de `api-*` |
+| `lib/api.ts` | `API_BASE_URL` deriva de `PUBLIC_API_BASE_URL`, rutas `api/*` en vez de `api-*` |
 | `App.tsx` | `BrowserRouter basename="/abax-gantt"` |
-| `vite.config.ts` | `base` parametrizable con `VITE_BASE_PATH`, default `/abax-gantt/` |
+| `vite.config.ts` | `base: './'` para assets relativos; `PUBLIC_BASE_PATH` controla routing/runtime |
 | `index.html` | Paths: favicon, manifest, service worker a `/abax-gantt/` |
 
 ### Backend (`deploy/server/`)
@@ -143,8 +149,8 @@ ADMIN_GROUP=abax-admins
 
 | Archivo | Descripción |
 |---------|-------------|
-| `Dockerfile` | Multi-stage: Node build frontend + Deno runtime. Build args: `VITE_AUTHENTIK_*`, `VITE_BASE_PATH`, `VITE_API_BASE_URL` |
-| `docker-compose.prod.yml` | Modo productivo: `container_name: abax-gantt`, build args frontend, volumen externo `abax-gantt_attachments`, red `infra-net` |
+| `Dockerfile` | Multi-stage: Node build frontend genérico + Deno runtime |
+| `docker-compose.prod.yml` | Modo productivo: `container_name: abax-gantt`, variables runtime `PUBLIC_*`, volumen externo `abax-gantt_attachments`, red `infra-net` |
 | `docker-compose.bundled.yml` | Modo todo incluido: PostgreSQL + Authentik + ABAX |
 | `docker-compose.external.yml` | Modo infraestructura propia |
 | `.env.production` | Template de variables de producción |

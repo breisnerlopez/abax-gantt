@@ -1,6 +1,14 @@
 # Diseño de Despliegue Instalable — ABAX Gantt
 
-**Versión:** 1.0  
+> **Archivado.** Este documento describe el diseño de referencia original. La implementación real está en `deploy/`:
+> - `deploy/Dockerfile` — build multi-stage
+> - `deploy/docker-compose.external.yml` — modo infraestructura propia
+> - `deploy/docker-compose.bundled.yml` — modo todo incluido
+> - `deploy/README-INSTALL.md` — guía de instalación actualizada
+>
+> Ver `README.md` para quickstart y configuración runtime con `PUBLIC_*`.
+
+**Versión:** 1.0 (archivado)  
 **Fecha:** Mayo 2026  
 **Destino:** Producto instalable con Docker Compose
 

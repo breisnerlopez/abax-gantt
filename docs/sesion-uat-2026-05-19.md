@@ -15,8 +15,8 @@
 | Backend tests | 86 unit + 93 integración OK, pero **sobre código paralelo `supabase/functions/`** |
 | Código en producción | `deploy/server/api/*.ts` **sin tests** y con drift respecto a supabase/functions |
 | Authentik provider | **Sin scope mappings** → tokens emitidos sin `email`, `name`, `groups` |
-| `akadmin` en grupo `abax-admins` | **No** (a pesar de lo que decía `ADMIN_GROUP=abax-admins`) |
-| Profile akadmin en BD | `email=null`, `full_name=null`, `is_admin=false` (consecuencia de los dos anteriores) |
+| `admin` en grupo `abax-admins` | **No** (a pesar de lo que decía `ADMIN_GROUP=abax-admins`) |
+| Profile admin en BD | `email=null`, `full_name=null`, `is_admin=false` (consecuencia de los dos anteriores) |
 
 ## 2. Decisiones tomadas con el usuario
 
@@ -24,7 +24,7 @@
 |---|---|
 | ¿Cómo cerrar la brecha de cobertura del código `deploy/`? | Portar tests al código `deploy/` (Recomendado) |
 | ¿Cómo autenticarse para UAT real? | Acceso al host via docker exec |
-| Bloqueo MFA en akadmin | Resuelto sin tocar MFA: minteo de tokens via Authentik admin shell |
+| Bloqueo MFA en admin | Resuelto sin tocar MFA: minteo de tokens via Authentik admin shell |
 
 ## 3. Cronología técnica
 
@@ -39,8 +39,8 @@ provider.property_mappings.set([
   ScopeMapping.objects.get(name="authentik default OAuth Mapping: OpenID 'offline_access'"),
 ])
 
-# Añadir akadmin a abax-admins
-User.objects.get(username='akadmin').ak_groups.add(Group.objects.get(name='abax-admins'))
+# Añadir admin a abax-admins
+User.objects.get(username='admin').ak_groups.add(Group.objects.get(name='abax-admins'))
 
 # Crear usuarios de prueba
 for u, name, email, pwd in [
@@ -90,8 +90,8 @@ Ver `docs/bugs-uat.md` para detalle completo. Resumen:
 | # | Severidad | Componente | Descripción | Fix |
 |---|---|---|---|---|
 | CONF-1 | Crítica | Authentik provider | Sin scope mappings | Adjuntar 4 mappings estándar |
-| CONF-2 | Alta | Authentik | akadmin no en abax-admins | `add(Group)` |
-| CONF-3 | Media | DB producción | Profile akadmin sin email/name | UPDATE in place |
+| CONF-2 | Alta | Authentik | admin no en abax-admins | `add(Group)` |
+| CONF-3 | Media | DB producción | Profile admin sin email/name | UPDATE in place |
 | BUG-1 | Crítica | `_shared/db.ts` | NUMERIC se concatena como string en sumas (`"00.000.000.000.00"`) | Parser de tipo NUMERIC en cliente postgres |
 | BUG-2 | Crítica | `poc/src/lib/api.ts` (+2 pages) | 11 paths usaban `api-X` (Supabase) en lugar de `api/X` (deploy router) | Normalizar todos los paths |
 | BUG-3 | Crítica | `wbs-node.ts`, `projects.ts` | Solo aceptaban PUT, no PATCH | `if (method === PUT || PATCH)` |
@@ -223,30 +223,30 @@ Salida esperada del smoke (extracto):
 
 ## 7. Despliegue actual
 
-- Imagen: `abax-gantt:latest` (rebuild post-fixes, contenedor activo `abax-gantt`)
+- Imagen: `ghcr.io/breisnerlopez/abax-gantt:v0.1.0` (contenedor activo `abax-gantt`)
 - Variables: ver `docs/estado-despliegue.md` §4 (sin cambios)
 - Migraciones: 7 aplicadas (sin cambios)
-- Datos: 3 perfiles (akadmin, responsable, ejecutor) + UAT demo project descartable
+- Datos: 3 perfiles (admin, responsable, ejecutor) + UAT demo project descartable
 
 Si necesitás re-desplegar:
 
 ```bash
-sudo docker build -f deploy/Dockerfile \
-  --build-arg VITE_AUTHENTIK_AUTHORITY="https://auth.breisner.info/application/o/abax-gantt/" \
-  --build-arg VITE_AUTHENTIK_CLIENT_ID="abax-gantt-spa" \
-  --build-arg VITE_AUTHENTIK_REDIRECT_URI="https://demo.breisner.info/abax-gantt/auth/callback" \
-  --build-arg VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI="https://demo.breisner.info/abax-gantt/login" \
-  --build-arg VITE_API_BASE_URL="/abax-gantt" \
-  -t abax-gantt:latest .
+sudo docker build -f deploy/Dockerfile -t abax-gantt:latest .
 
 sudo docker stop abax-gantt && sudo docker rm abax-gantt
 sudo docker run -d --name abax-gantt --network infra-net \
-  -e DATABASE_URL="postgresql://abax:abax@shared-postgres:5432/abax_gantt" \
+  -e DATABASE_URL="postgresql://abax:<password>@<host>:5432/abax_gantt" \
   -e AUTHENTIK_ISSUER="https://auth.breisner.info/application/o/abax-gantt/" \
   -e AUTHENTIK_CLIENT_ID="abax-gantt-spa" \
   -e AUTHENTIK_JWKS_URL="https://auth.breisner.info/application/o/abax-gantt/jwks/" \
   -e STORAGE_PATH="/app/data/attachments" \
   -e ADMIN_GROUP="abax-admins" \
+  -e PUBLIC_AUTHENTIK_AUTHORITY="https://auth.breisner.info/application/o/abax-gantt/" \
+  -e PUBLIC_AUTHENTIK_CLIENT_ID="abax-gantt-spa" \
+  -e PUBLIC_AUTHENTIK_REDIRECT_URI="https://demo.breisner.info/abax-gantt/auth/callback" \
+  -e PUBLIC_AUTHENTIK_POST_LOGOUT_REDIRECT_URI="https://demo.breisner.info/abax-gantt/login" \
+  -e PUBLIC_BASE_PATH="/abax-gantt/" \
+  -e PUBLIC_API_BASE_URL="/abax-gantt" \
   abax-gantt:latest
 
 sleep 5 && curl -sk https://demo.breisner.info/abax-gantt/api/health

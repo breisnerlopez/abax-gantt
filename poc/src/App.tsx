@@ -4,6 +4,7 @@ import { useAuthSession } from './hooks/useAuthSession';
 import { AuthCallbackPage } from './pages/AuthCallbackPage';
 import { LoginPage } from './pages/LoginPage';
 import { ToastProvider } from './components/ToastProvider';
+import { config } from './lib/runtimeConfig';
 import { ThemeProvider } from './lib/theme';
 import type { WbsNode } from './lib/types';
 
@@ -34,7 +35,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <ToastProvider>
-        <BrowserRouter basename="/abax-gantt">
+        <BrowserRouter basename={config.publicBasePath === '/' ? undefined : config.publicBasePath.replace(/\/$/, '')}>
           <Routes>
             <Route path="/login" element={<LoginPage session={auth.session} onDevToken={auth.refresh} />} />
             <Route path="/auth/callback" element={<AuthCallbackPage onComplete={auth.refresh} />} />

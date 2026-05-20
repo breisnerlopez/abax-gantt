@@ -47,7 +47,7 @@ export function LoginPage({ session, onDevToken }: LoginPageProps) {
           <button className="authentik-button" onClick={handleOidc} disabled={!isOidcConfigured}>
             Continuar con Authentik
           </button>
-          {!isOidcConfigured && <p className="form-hint">Configura `VITE_AUTHENTIK_AUTHORITY` y `VITE_AUTHENTIK_CLIENT_ID` para activar OIDC.</p>}
+          {!isOidcConfigured && <p className="form-hint">Configura `PUBLIC_AUTHENTIK_AUTHORITY` y `PUBLIC_AUTHENTIK_CLIENT_ID` para activar OIDC.</p>}
           {error && <p className="form-error">{error}</p>}
           <form onSubmit={handleDevToken} className="token-form">
             <label htmlFor="token">Fallback desarrollo</label>

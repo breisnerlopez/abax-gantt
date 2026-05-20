@@ -77,16 +77,16 @@ docker compose -f docker-compose.bundled.yml ps
 | `AUTHENTIK_CLIENT_ID` | Client ID OIDC | Runtime + build |
 | `AUTHENTIK_JWKS_URL` | JWKS URL para validar tokens | Runtime |
 | `ADMIN_GROUP` | Grupo Authentik para admins | Runtime |
-| `VITE_AUTHENTIK_AUTHORITY` | Issuer OIDC usado por el frontend | Build |
-| `VITE_AUTHENTIK_CLIENT_ID` | Client ID usado por el frontend | Build |
-| `VITE_AUTHENTIK_REDIRECT_URI` | Callback público del frontend | Build |
-| `VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI` | URL pública post logout | Build |
-| `VITE_BASE_PATH` | Base pública de assets Vite (`/` o `/abax-gantt/`) | Build |
-| `VITE_API_BASE_URL` | Prefijo público API cuando hay subpath | Build |
+| `PUBLIC_AUTHENTIK_AUTHORITY` | Issuer OIDC usado por el frontend | Runtime |
+| `PUBLIC_AUTHENTIK_CLIENT_ID` | Client ID usado por el frontend | Runtime |
+| `PUBLIC_AUTHENTIK_REDIRECT_URI` | Callback público del frontend | Runtime |
+| `PUBLIC_AUTHENTIK_POST_LOGOUT_REDIRECT_URI` | URL pública post logout | Runtime |
+| `PUBLIC_BASE_PATH` | Base pública de la app (`/` o `/abax-gantt/`) | Runtime |
+| `PUBLIC_API_BASE_URL` | Prefijo público API cuando hay subpath | Runtime |
 | `DB_PASSWORD` | Contraseña PostgreSQL interna | Bundled |
 | `AUTHENTIK_SECRET_KEY` | Clave secreta Authentik | Bundled |
 
-En producción bajo `/abax-gantt`, `VITE_BASE_PATH` debe ser `/abax-gantt/` y `VITE_API_BASE_URL` debe ser `/abax-gantt`. Si `VITE_API_BASE_URL` queda vacío, el frontend puede llamar a `/api/*` y Traefik devolverá 404.
+En producción bajo `/abax-gantt`, `PUBLIC_BASE_PATH` debe ser `/abax-gantt/` y `PUBLIC_API_BASE_URL` debe ser `/abax-gantt`. Si `PUBLIC_API_BASE_URL` queda vacío, el frontend puede llamar a `/api/*` y Traefik devolverá 404.
 
 ## Arquitectura Interna
 
@@ -129,8 +129,8 @@ cd /workspace/abax-gantt/deploy
 cp .env.production .env
 # Editar DATABASE_URL y valores Authentik reales
 
-# 2. Desplegar reconstruyendo el frontend con los build args del .env
-docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+# 2. Desplegar. La imagen es configurable por runtime; no requiere rebuild por dominio.
+docker compose -f docker-compose.prod.yml --env-file .env up -d
 
 # 3. Verificar salud pública
 curl https://demo.breisner.info/abax-gantt/api/health
@@ -194,17 +194,11 @@ Tags generados:
 | Tag `v*` | `vX.Y.Z`, `sha-<commit>` |
 | Pull request | Build sin push |
 
-Construcción manual alternativa con valores definitivos de frontend antes de etiquetar:
+Construcción manual alternativa:
 
 ```bash
 # Ejecutar desde la raiz del repositorio.
 docker build -f deploy/Dockerfile -t abax-gantt:latest \
-  --build-arg VITE_AUTHENTIK_AUTHORITY=https://auth.breisner.info/application/o/abax-gantt/ \
-  --build-arg VITE_AUTHENTIK_CLIENT_ID=abax-gantt-spa \
-  --build-arg VITE_AUTHENTIK_REDIRECT_URI=https://demo.breisner.info/abax-gantt/auth/callback \
-  --build-arg VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI=https://demo.breisner.info/abax-gantt/login \
-  --build-arg VITE_BASE_PATH=/abax-gantt/ \
-  --build-arg VITE_API_BASE_URL=/abax-gantt \
   .
 ```
 

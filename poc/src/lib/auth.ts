@@ -1,9 +1,10 @@
 import { UserManager, WebStorageStateStore, type User } from 'oidc-client-ts';
+import { config } from './runtimeConfig';
 
-const authority = import.meta.env.VITE_AUTHENTIK_AUTHORITY ?? '';
-const clientId = import.meta.env.VITE_AUTHENTIK_CLIENT_ID ?? '';
-const redirectUri = import.meta.env.VITE_AUTHENTIK_REDIRECT_URI ?? `${window.location.origin}/abax-gantt/auth/callback`;
-const postLogoutRedirectUri = import.meta.env.VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI ?? `${window.location.origin}/abax-gantt/login`;
+const authority = config.authentikAuthority;
+const clientId = config.authentikClientId;
+const redirectUri = config.authentikRedirectUri;
+const postLogoutRedirectUri = config.authentikPostLogoutRedirectUri;
 
 export const isOidcConfigured = Boolean(authority && clientId);
 
