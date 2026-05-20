@@ -138,7 +138,7 @@ export async function createWbsNode(token: string, input: { parent_id: string; n
   return apiSend<WbsNode>('api/wbs', token, 'POST', input);
 }
 
-export async function updateWbsNode(token: string, id: string, patch: Partial<Pick<WbsNode, 'name' | 'description' | 'start_date' | 'end_date' | 'progress' | 'estimated_hours' | 'estimated_cost' | 'color' | 'responsible_id'>>) {
+export async function updateWbsNode(token: string, id: string, patch: Partial<Pick<WbsNode, 'name' | 'description' | 'status' | 'start_date' | 'end_date' | 'progress' | 'estimated_hours' | 'estimated_cost' | 'color' | 'responsible_id'>>) {
   return apiSend<WbsNode>(`api/wbs/${id}`, token, 'PATCH', patch);
 }
 

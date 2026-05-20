@@ -12,14 +12,32 @@ interface LoginPageProps {
 export function LoginPage({ session, onDevToken }: LoginPageProps) {
   const [token, setToken] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
   const redirectingRef = useRef(false);
 
   useEffect(() => {
     if (isOidcConfigured && !session?.accessToken && !redirectingRef.current) {
       redirectingRef.current = true;
-      loginWithAuthentik();
+      setRedirecting(true);
+      loginWithAuthentik().catch((err) => {
+        setRedirecting(false);
+        redirectingRef.current = false;
+        setError(err instanceof Error ? err.message : 'No se pudo iniciar sesión');
+      });
     }
   }, [session?.accessToken]);
+
+  if (redirecting) {
+    return (
+      <main className="auth-screen">
+        <section className="callback-card">
+          <div className="spinner" />
+          <h1>Redirigiendo a Authentik</h1>
+          <p>Iniciando sesión segura...</p>
+        </section>
+      </main>
+    );
+  }
 
   if (session?.accessToken) return <Navigate to="/gantt" replace />;
 

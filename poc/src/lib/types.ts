@@ -48,6 +48,7 @@ export interface WbsNode {
   sort_order: number | null;
   responsible_id: string | null;
   is_unscheduled: boolean;
+  status: string | null;
   path: string;
   task_assignees?: TaskAssignee[];
 }

@@ -5,6 +5,25 @@ import { toGanttData } from '../lib/dhtmlx-adapter';
 import type { Dependency, DependencyType, Profile, WbsNode } from '../lib/types';
 import { canCreateDependency, canMoveNode } from '../lib/validation';
 
+const STATUS_LABELS: Record<string, string> = {
+  pendiente: 'Pendiente',
+  en_progreso: 'En progreso',
+  completado: 'Completado',
+  retrasado: 'Retrasado',
+  cancelado: 'Cancelado',
+  en_pausa: 'En pausa',
+  en_revision: 'En revisión',
+};
+
+function computeNodeStatus(node: WbsNode): string {
+  if (node.status) return node.status;
+  const today = new Date().toISOString().slice(0, 10);
+  if ((node.progress ?? 0) >= 1) return 'completado';
+  if (node.end_date && node.end_date < today) return 'retrasado';
+  if ((node.progress ?? 0) > 0) return 'en_progreso';
+  return 'pendiente';
+}
+
 interface GanttCanvasProps {
   nodes: WbsNode[];
   dependencies: Dependency[];
@@ -15,6 +34,8 @@ interface GanttCanvasProps {
   onMoveNode: (nodeId: string, input: { parent_id?: string | null; sort_order?: number }) => Promise<boolean>;
   /** Persiste cambios de start/end producidos al arrastrar una barra del Gantt. */
   onUpdateDates?: (nodeId: string, input: { start_date: string; end_date: string }) => Promise<unknown>;
+  /** Persiste el cambio de estado al editar la columna inline. */
+  onUpdateStatus?: (nodeId: string, status: string | null) => Promise<unknown>;
   canEditStructure: boolean;
   onValidationError: (message: string) => void;
   todaySignal: number;
@@ -22,7 +43,7 @@ interface GanttCanvasProps {
   onMoveComplete: () => void;
 }
 
-export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreateDependency, onDeleteDependency, onMoveNode, onUpdateDates, canEditStructure, onValidationError, todaySignal, scale, onMoveComplete }: GanttCanvasProps) {
+export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreateDependency, onDeleteDependency, onMoveNode, onUpdateDates, onUpdateStatus, canEditStructure, onValidationError, todaySignal, scale, onMoveComplete }: GanttCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pendingDeleteLinkId, setPendingDeleteLinkId] = useState<string | null>(null);
   const [deletingLink, setDeletingLink] = useState(false);
@@ -32,14 +53,14 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
   const nodesRef = useRef(nodes);
   const dependenciesRef = useRef(dependencies);
   const usersRef = useRef(users);
-  const callbacksRef = useRef({ onSelectNode, onCreateDependency, onDeleteDependency, onMoveNode, onUpdateDates, onValidationError, onMoveComplete });
+  const callbacksRef = useRef({ onSelectNode, onCreateDependency, onDeleteDependency, onMoveNode, onUpdateDates, onUpdateStatus, onValidationError, onMoveComplete });
   // Flag para suprimir onAfterTaskUpdate durante un parse/clearAll programático.
   const isParsingRef = useRef(false);
   useEffect(() => {
     nodesRef.current = nodes;
     dependenciesRef.current = dependencies;
     usersRef.current = users;
-    callbacksRef.current = { onSelectNode, onCreateDependency, onDeleteDependency, onMoveNode, onUpdateDates, onValidationError, onMoveComplete };
+    callbacksRef.current = { onSelectNode, onCreateDependency, onDeleteDependency, onMoveNode, onUpdateDates, onUpdateStatus, onValidationError, onMoveComplete };
   });
 
   // Init UNA SOLA VEZ (depende sólo de canEditStructure para reconfigurar permisos).
@@ -63,6 +84,9 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     gantt.config.show_links = true;
     gantt.config.drag_project = canEditStructure;
     gantt.config.readonly = !canEditStructure;
+    gantt.config.details_on_dblclick = false;
+    gantt.config.smart_rendering = true;
+    gantt.config.min_grid_column_width = 60;
 
     gantt.config.columns = [
       {
@@ -76,25 +100,49 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       {
         name: 'start_date',
         label: 'Inicio',
-        width: 112,
+        width: 95,
         align: 'center',
         resize: true,
         template: (task: { start_date?: Date | string | null }) => {
           if (!task.start_date) return '';
           const d = task.start_date instanceof Date ? task.start_date : new Date(task.start_date);
           if (Number.isNaN(d.getTime())) return '';
-          return d.toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' });
+          const dd = String(d.getDate()).padStart(2, '0');
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          return `${dd}/${mm}/${d.getFullYear()}`;
         },
       },
-      { name: 'duration', label: 'Días', width: 58, align: 'center', resize: true },
+      { name: 'duration', label: 'Días', width: 48, align: 'center', resize: true },
       {
         name: 'progress',
         label: '%',
-        width: 58,
+        width: 48,
         align: 'center',
         resize: true,
         template: (task: { progress?: number }) => `${Math.round((task.progress ?? 0) * 100)}%`,
       },
+      {
+        name: 'status',
+        label: 'Estado',
+        width: 105,
+        align: 'center',
+        resize: true,
+        editor: {
+          type: 'select',
+          map_to: 'status',
+          options: [
+            { key: '__auto__', label: 'Auto' },
+            ...Object.entries(STATUS_LABELS).map(([key, label]) => ({ key, label })),
+          ],
+        },
+        template: (task: Record<string, unknown>) => {
+          const ganttTask = task as { node?: WbsNode };
+          if (!ganttTask.node) return '';
+          const s = computeNodeStatus(ganttTask.node);
+          return `<span class="status-badge status-badge--${s}">${STATUS_LABELS[s] ?? s}</span>`;
+        },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any,
       {
         name: 'responsible',
         label: 'Resp.',
@@ -135,7 +183,7 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
 
     gantt.ext.zoom.init({
       levels: [
-        { name: 'Día', scale_height: 56, min_column_width: 42, scales: [{ unit: 'month', step: 1, format: '%F %Y' }, { unit: 'day', step: 1, format: '%d' }] },
+        { name: 'Día', scale_height: 56, min_column_width: 28, scales: [{ unit: 'month', step: 1, format: '%F %Y' }, { unit: 'day', step: 1, format: '%d' }] },
         { name: 'Semana', scale_height: 56, min_column_width: 32, scales: [{ unit: 'month', step: 1, format: '%F %Y' }, { unit: 'week', step: 1, format: 'S%W' }] },
         { name: 'Mes', scale_height: 56, min_column_width: 72, scales: [{ unit: 'year', step: 1, format: '%Y' }, { unit: 'month', step: 1, format: '%F' }] },
         { name: 'Año', scale_height: 56, min_column_width: 88, scales: [{ unit: 'year', step: 1, format: '%Y' }, { unit: 'quarter', step: 1, format: (date: Date) => `Q${Math.floor(date.getMonth() / 3) + 1}` }] },
@@ -185,14 +233,26 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     // se pierden en el siguiente refresh del portfolio.
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const updateEvent = gantt.attachEvent('onAfterTaskUpdate', (id, item) => {
-      // Si estamos reparsing (clearAll+parse), no es un drag real del usuario.
       if (isParsingRef.current) return true;
       const taskId = String(id);
-      // DHTMLX puede devolver ids no-UUID (ej. tasks creadas en su UI nativa).
-      // Si no es UUID, no podemos persistir al backend — ignorar.
       if (!UUID_RE.test(taskId)) return true;
       const node = nodesRef.current.find((n) => n.id === taskId);
       if (!node || node.type === 'project') return true;
+
+      const newStatus = (item as { status?: string }).status;
+      if (newStatus !== undefined) {
+        const resolved = newStatus === '__auto__' ? null : newStatus;
+        const oldComputed = computeNodeStatus(node);
+        const newComputed = resolved ?? computeNodeStatus({ ...node, status: null } as WbsNode);
+        if (resolved === node.status || (!resolved && !node.status)) { gantt.closeEditor(); return true; }
+        if (!resolved && oldComputed === newComputed) { gantt.closeEditor(); return true; }
+        node.status = resolved ?? null;
+        void callbacksRef.current.onUpdateStatus?.(taskId, resolved).catch(() => {
+          gantt.parse(toGanttData(nodesRef.current, dependenciesRef.current));
+        });
+        gantt.closeEditor();
+        return true;
+      }
       const startDate = (item as { start_date?: Date | string }).start_date;
       const duration = (item as { duration?: number }).duration ?? 1;
       if (!startDate) return true;
@@ -239,14 +299,23 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       gantt.detachEvent(moveEvent);
       gantt.clearAll();
     };
-  }, [canEditStructure, scale]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo reinicializar si cambian permisos; scale se maneja en efecto separado
+  }, [canEditStructure]);
 
   useEffect(() => {
     try {
       gantt.ext.zoom.setLevel(scale);
+      // Re-parse necesario para que DHTMLX recalcule ancho de columnas del timeline
+      // con el nuevo min_column_width del nivel de zoom.
+      const ganttData = toGanttData(nodesRef.current, dependenciesRef.current);
+      isParsingRef.current = true;
+      gantt.parse(ganttData);
+      setTimeout(() => { isParsingRef.current = false; }, 0);
       gantt.render();
-    } catch { /* gantt not initialized */ }
+    } catch { /* gantt no inicializado */ }
   }, [scale]);
+
+  // Cambiar zoom sin reinicializar todo el Gantt: solo ajustar nivel y re-renderizar.
 
   useEffect(() => {
     if (!containerRef.current) return;

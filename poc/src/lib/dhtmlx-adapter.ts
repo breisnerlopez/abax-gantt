@@ -10,6 +10,7 @@ export interface GanttTask {
   type: string;
   open: boolean;
   color?: string;
+  status?: string;
   node: WbsNode;
 }
 
@@ -31,6 +32,15 @@ function durationInDays(start: string | null, end: string | null, fallback: numb
   return Math.max(1, Math.round((endTime - startTime) / 86400000) + 1);
 }
 
+function computeNodeStatus(node: WbsNode): string {
+  if (node.status) return node.status;
+  const today = new Date().toISOString().slice(0, 10);
+  if ((node.progress ?? 0) >= 1) return 'completado';
+  if (node.end_date && node.end_date < today) return 'retrasado';
+  if ((node.progress ?? 0) > 0) return 'en_progreso';
+  return 'pendiente';
+}
+
 export function toGanttData(nodes: WbsNode[], dependencies: Dependency[]) {
   const scheduledNodes = nodes.filter((node) => !node.is_unscheduled && node.start_date);
   const existingIds = new Set(scheduledNodes.map((node) => node.id));
@@ -45,6 +55,7 @@ export function toGanttData(nodes: WbsNode[], dependencies: Dependency[]) {
     type: node.type,
     open: true,
     color: node.color ?? undefined,
+    status: computeNodeStatus(node),
     node,
   }));
 

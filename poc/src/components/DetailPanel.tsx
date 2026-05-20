@@ -5,12 +5,43 @@ import { deleteAttachment, getBudgetReport, listAttachments, uploadAttachment } 
 import type { Attachment, BudgetReport, Profile, TaskAssignee, WbsNode } from '../lib/types';
 import { isValidNodeName, validateAttachment, validateDateRange } from '../lib/validation';
 
+const STATUS_OPTIONS = ['pendiente', 'en_progreso', 'completado', 'retrasado', 'cancelado', 'en_pausa', 'en_revision'] as const;
+
+const STATUS_LABELS: Record<string, string> = {
+  pendiente: 'Pendiente',
+  en_progreso: 'En progreso',
+  completado: 'Completado',
+  retrasado: 'Retrasado',
+  cancelado: 'Cancelado',
+  en_pausa: 'En pausa',
+  en_revision: 'En revisión',
+};
+
+function computeStatus(node: WbsNode): string {
+  if (node.status) return node.status;
+  const today = new Date().toISOString().slice(0, 10);
+  if ((node.progress ?? 0) >= 1) return 'completado';
+  if (node.end_date && node.end_date < today) return 'retrasado';
+  if ((node.progress ?? 0) > 0) return 'en_progreso';
+  return 'pendiente';
+}
+
+function statusLabel(node: WbsNode): string {
+  return STATUS_LABELS[computeStatus(node)] ?? computeStatus(node);
+}
+
+function nodeStatusBadge(node: WbsNode): string {
+  const s = computeStatus(node);
+  if (STATUS_OPTIONS.includes(s as typeof STATUS_OPTIONS[number])) return s;
+  return 'pendiente';
+}
+
 interface DetailPanelProps {
   node: WbsNode | null;
   token: string;
   users: Profile[];
   assignees: TaskAssignee[];
-  onSave: (id: string, patch: Partial<Pick<WbsNode, 'name' | 'description' | 'start_date' | 'end_date' | 'progress' | 'estimated_hours'>>) => Promise<void>;
+  onSave: (id: string, patch: Partial<Pick<WbsNode, 'name' | 'description' | 'status' | 'start_date' | 'end_date' | 'progress' | 'estimated_hours'>>) => Promise<void>;
   onUnschedule: (node: WbsNode) => Promise<void>;
   onAddAssignee: (userId: string) => Promise<void>;
   onRemoveAssignee: (assignmentId: string) => Promise<void>;
@@ -48,6 +79,7 @@ export function DetailPanel({ node, token, users, assignees, onSave, onUnschedul
       onSave(node.id, {
         name: form.name,
         description: form.description || null,
+        status: form.status || null,
         start_date: form.start_date || null,
         end_date: form.end_date || null,
         estimated_hours: form.estimated_hours === '' ? null : Number(form.estimated_hours),
@@ -100,7 +132,7 @@ export function DetailPanel({ node, token, users, assignees, onSave, onUnschedul
         )}
         <span className={`type-dot type-dot--${node.type}`} />
         <div className="detail-header-text">
-          <p>{labelForType(node.type)}</p>
+          <p>{labelForType(node.type)} <span className={`status-badge status-badge--${nodeStatusBadge(node)}`}>{statusLabel(node)}</span></p>
           <h2>{node.name}</h2>
           {node.responsible_id && <small>Responsable: {displayUser(users.find((user) => user.id === node.responsible_id))}</small>}
         </div>
@@ -175,6 +207,15 @@ function InfoTab({ node, form, update, onUnschedule, canEditStructure }: { node:
         : node.type === 'task' && canEditStructure && <button className="danger-soft-button" onClick={() => void onUnschedule(node)}>Enviar al backlog</button>}
       <label className="edit-field"><span>Nombre</span><input value={form.name} disabled={!canEditStructure} onChange={(event) => update('name', event.target.value)} /></label>
       <label className="edit-field"><span>Descripción</span><textarea value={form.description} disabled={!canEditStructure} onChange={(event) => update('description', event.target.value)} /></label>
+      <label className="edit-field"><span>Estado</span>
+        <select value={form.status ?? ''} disabled={!canEditStructure} onChange={(event) => update('status', event.target.value)}>
+          <option value="">Automático ({statusLabel(node)})</option>
+          {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
+        </select>
+        <small style={{ color: 'var(--text-tertiary)', fontSize: 11, marginTop: 4, display: 'block' }}>
+          Dejar en &quot;Automático&quot; calcula el estado del avance y las fechas.
+        </small>
+      </label>
       <div className="field-grid">
         <label className="edit-field"><span>Inicio</span><input type="date" value={form.start_date} disabled={!canEditStructure} onChange={(event) => update('start_date', event.target.value)} /></label>
         <label className="edit-field"><span>Fin</span><input type="date" value={form.end_date} disabled={!canEditStructure} onChange={(event) => update('end_date', event.target.value)} /></label>
@@ -475,6 +516,7 @@ function toForm(node: WbsNode | null) {
   return {
     name: node?.name ?? '',
     description: node?.description ?? '',
+    status: node?.status ?? '',
     start_date: (node?.start_date ?? '').slice(0, 10),
     end_date: (node?.end_date ?? '').slice(0, 10),
     estimated_hours: node?.estimated_hours == null ? '' : String(node.estimated_hours),

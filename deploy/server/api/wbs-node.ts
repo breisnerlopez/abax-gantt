@@ -29,11 +29,20 @@ export async function handler(req: Request): Promise<Response> {
     if (req.method === "PUT" || req.method === "PATCH") {
       await assertCanManageNode(auth.userId, id);
       const body = await readJson(req);
-      const fields = ["name","description","type","start_date","end_date","progress","estimated_hours","estimated_cost","color","sort_order","responsible_id","is_collapsed"];
+      const fields = ["name","description","type","status","start_date","end_date","progress","estimated_hours","estimated_cost","color","sort_order","responsible_id","is_collapsed"];
       const patch: Record<string, unknown> = {};
       for (const f of fields) {
         if (body[f] !== undefined) {
           if (f === "type") patch[f] = parseNodeType(body[f]);
+          else if (f === "status") {
+            const v = body[f];
+            if (v === null) { patch[f] = null; }
+            else {
+              const s = String(v);
+              if (!["pendiente","en_progreso","completado","retrasado","cancelado","en_pausa","en_revision"].includes(s)) throw new ApiError(400, `Estado no soportado: ${s}`);
+              patch[f] = s;
+            }
+          }
           else if (f === "responsible_id") patch[f] = optionalUuid(body[f], f);
           else patch[f] = body[f];
         }

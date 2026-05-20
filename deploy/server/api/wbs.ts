@@ -24,6 +24,7 @@ type WbsNode = Record<string, unknown> & {
 };
 
 function nodeStatus(node: WbsNode): string {
+  if (node.status && typeof node.status === "string") return node.status;
   const today = new Date().toISOString().slice(0, 10);
   if (node.progress >= 1) return "completado";
   if (node.end_date && node.end_date < today) return "retrasado";
@@ -145,7 +146,11 @@ export async function handler(req: Request): Promise<Response> {
         ${dateFrom ? `AND wn.end_date >= $${allowedIds.length + (responsibleId ? 2 : 1)}` : ""}
         ${dateTo ? `AND wn.start_date <= $${allowedIds.length + (responsibleId ? 2 : 1) + (dateFrom ? 1 : 0)}` : ""}
         ${search ? `AND (wn.name ILIKE '%' || $${allowedIds.length + (responsibleId ? 2 : 1) + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0)} || '%' OR wn.description ILIKE '%' || $${allowedIds.length + (responsibleId ? 2 : 1) + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0)} || '%')` : ""}
-        ORDER BY wn.path, wn.sort_order
+        ORDER BY
+          (SELECT MIN(c.start_date) FROM wbs_nodes c WHERE c.project_id = wn.project_id AND c.start_date IS NOT NULL) ASC NULLS LAST,
+          wn.project_id,
+          wn.path,
+          wn.sort_order
       `;
 
       const params: (string | null)[] = [...allowedIds];

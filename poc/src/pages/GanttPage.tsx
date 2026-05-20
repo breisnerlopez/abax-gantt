@@ -536,9 +536,6 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
                 onMoveNode={handleMoveNode}
                 onUpdateDates={async (nodeId, input) => {
                   if (!token) return;
-                  // Optimistic update: aplicar el cambio local INMEDIATAMENTE para evitar
-                  // que el segundo useEffect del Gantt re-renderice con datos viejos durante
-                  // el round-trip al backend.
                   const previous = portfolio.data?.nodes.find((n) => n.id === nodeId);
                   if (previous) {
                     portfolio.updateNodeLocal({ ...previous, start_date: input.start_date, end_date: input.end_date, is_unscheduled: false });
@@ -548,9 +545,24 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
                     portfolio.updateNodeLocal(updated);
                     notify({ tone: 'success', title: 'Fechas guardadas' });
                   } catch (error) {
-                    // Rollback al estado previo si falla
                     if (previous) portfolio.updateNodeLocal(previous);
                     notify({ tone: 'error', title: 'No se pudieron guardar las fechas', detail: errorMessage(error) });
+                    throw error;
+                  }
+                }}
+                onUpdateStatus={async (nodeId, newStatus) => {
+                  if (!token) return;
+                  const previous = portfolio.data?.nodes.find((n) => n.id === nodeId);
+                  if (previous) {
+                    portfolio.updateNodeLocal({ ...previous, status: newStatus ?? null });
+                  }
+                  try {
+                    const updated = await updateWbsNode(token, nodeId, { status: newStatus ?? null } as Partial<WbsNode>);
+                    portfolio.updateNodeLocal(updated);
+                    notify({ tone: 'success', title: 'Estado actualizado' });
+                  } catch (error) {
+                    if (previous) portfolio.updateNodeLocal(previous);
+                    notify({ tone: 'error', title: 'No se pudo actualizar el estado', detail: errorMessage(error) });
                     throw error;
                   }
                 }}

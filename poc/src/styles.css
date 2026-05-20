@@ -180,6 +180,14 @@ kbd { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; fo
 .type-dot--stage { border: 1.5px dashed var(--proj-violet); background: var(--accent-soft); }
 .type-dot--group { background: var(--proj-teal); }
 .type-dot--milestone { transform: rotate(45deg); background: var(--warning); }
+.status-badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; margin-left: 6px; vertical-align: middle; }
+.status-badge--pendiente { background: var(--border); color: var(--text-tertiary); }
+.status-badge--en_progreso { background: var(--accent-soft); color: var(--accent); }
+.status-badge--completado { background: #dcfce7; color: #166534; }
+.status-badge--retrasado { background: #fef2f2; color: #b91c1c; }
+.status-badge--cancelado { background: #f3f4f6; color: #6b7280; text-decoration: line-through; }
+.status-badge--en_pausa { background: #fef9c3; color: #a16207; }
+.status-badge--en_revision { background: #ede9fe; color: #6b21a8; }
 .detail-tabs { display: flex; gap: 2px; padding: 0 4px; border-bottom: 1px solid var(--border); overflow-x: auto; }
 .detail-tabs button { border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 8px 10px; color: var(--text-secondary); white-space: nowrap; }
 .detail-tabs button.active { color: var(--text); border-bottom-color: var(--text); }
@@ -624,10 +632,39 @@ kbd { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; fo
 .detail-rail-dot {
   margin-top: auto;
   margin-bottom: 8px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   DHTMLX Gantt — inline editor y quick info sobreescritos
+   ══════════════════════════════════════════════════════════════ */
+.gantt_grid_data .gantt_row .gantt_cell select.editor,
+.gantt_grid_data .gantt_row select.editor {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1.5px solid var(--accent) !important;
+  border-radius: 6px !important;
+  padding: 4px 8px !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  font-size: 11.5px !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px var(--accent-soft) !important;
+  width: calc(100% - 4px) !important;
+  height: auto !important;
+}
+
+/* Quick info — acercar al diseño del DetailPanel */
+.gantt_cal_quick_info {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,.18) !important;
+  padding: 10px 12px !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  font-size: 12px !important;
+  color: var(--text) !important;
+}
+.gantt_qi_big_icon { display: none !important; }
+.gantt_qi_content { font-size: 12px !important; color: var(--text) !important; }
 
 @media (max-width: 768px) {
   .detail-rail { display: none; }
