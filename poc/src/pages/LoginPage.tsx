@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate } from 'react-router';
 import { storeToken } from '../lib/api';
 import { isOidcConfigured, loginWithAuthentik } from '../lib/auth';
@@ -12,6 +12,14 @@ interface LoginPageProps {
 export function LoginPage({ session, onDevToken }: LoginPageProps) {
   const [token, setToken] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const redirectingRef = useRef(false);
+
+  useEffect(() => {
+    if (isOidcConfigured && !session?.accessToken && !redirectingRef.current) {
+      redirectingRef.current = true;
+      loginWithAuthentik();
+    }
+  }, [session?.accessToken]);
 
   if (session?.accessToken) return <Navigate to="/gantt" replace />;
 
@@ -47,13 +55,17 @@ export function LoginPage({ session, onDevToken }: LoginPageProps) {
           <button className="authentik-button" onClick={handleOidc} disabled={!isOidcConfigured}>
             Continuar con Authentik
           </button>
-          {!isOidcConfigured && <p className="form-hint">Configura `PUBLIC_AUTHENTIK_AUTHORITY` y `PUBLIC_AUTHENTIK_CLIENT_ID` para activar OIDC.</p>}
+          {!isOidcConfigured && (
+            <>
+              <p className="form-hint">Configura `PUBLIC_AUTHENTIK_AUTHORITY` y `PUBLIC_AUTHENTIK_CLIENT_ID` para activar OIDC.</p>
+              <form onSubmit={handleDevToken} className="token-form">
+                <label htmlFor="token">Fallback desarrollo</label>
+                <textarea id="token" value={token} onChange={(event) => setToken(event.target.value)} placeholder="Access token Authentik" />
+                <button type="submit">Usar token manual</button>
+              </form>
+            </>
+          )}
           {error && <p className="form-error">{error}</p>}
-          <form onSubmit={handleDevToken} className="token-form">
-            <label htmlFor="token">Fallback desarrollo</label>
-            <textarea id="token" value={token} onChange={(event) => setToken(event.target.value)} placeholder="Access token Authentik" />
-            <button type="submit">Usar token manual</button>
-          </form>
         </div>
       </section>
     </main>
