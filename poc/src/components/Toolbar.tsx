@@ -12,14 +12,13 @@ interface ToolbarProps {
   onFocusProject: () => void;
   focusProjectName: string | null;
   onToday: () => void;
-  onCollapseAll: () => void;
   scale: 'Día' | 'Semana' | 'Mes' | 'Año';
   onScaleChange: (scale: 'Día' | 'Semana' | 'Mes' | 'Año') => void;
 }
 
 export function Toolbar({
   selectedName, onCreateProject, onCreateChild, canEditStructure,
-  onExport, onMyTasks, myTasks, onFocusProject, focusProjectName, onToday, onCollapseAll, scale, onScaleChange,
+  onExport, onMyTasks, myTasks, onFocusProject, focusProjectName, onToday, scale, onScaleChange,
 }: ToolbarProps) {
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
@@ -49,7 +48,6 @@ export function Toolbar({
         ))}
       </div>
       <button className={myTasks ? 'primary-button' : ''} onClick={onMyTasks}>Mis tareas</button>
-      <button onClick={onCollapseAll} title="Colapsar todos los proyectos">⊟ Colapsar</button>
       {focusProjectName ? (
         <button className="primary-button" onClick={onFocusProject}>← Volver a portafolio</button>
       ) : (

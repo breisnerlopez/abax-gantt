@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SearchableSelect } from './SearchableSelect';
 import type { NodeType } from '../lib/types';
 
 interface FilterBarProps {
@@ -107,24 +108,30 @@ export function FilterBar({
         <div className="filter-more-popover" role="region" aria-label="Filtros avanzados">
           <label>
             <span>Proyecto</span>
-            <select value={projectFilter ?? ''} onChange={(e) => onProjectFilter(e.target.value || null)}>
-              <option value="">Todos</option>
-              {projectOptions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            <SearchableSelect
+              value={projectFilter ?? ''}
+              options={projectOptions.map((p) => ({ id: p.id, label: p.name }))}
+              placeholder="Todos"
+              onChange={(id) => onProjectFilter(id)}
+            />
           </label>
           <label>
             <span>Responsable</span>
-            <select value={responsibleFilter ?? ''} onChange={(e) => onResponsibleFilter(e.target.value || null)}>
-              <option value="">Cualquiera</option>
-              {users.map((u) => <option key={u.id} value={u.id}>{u.full_name ?? u.email ?? u.id}</option>)}
-            </select>
+            <SearchableSelect
+              value={responsibleFilter ?? ''}
+              options={users.map((u) => ({ id: u.id, label: u.full_name ?? u.email ?? u.id }))}
+              placeholder="Cualquiera"
+              onChange={(id) => onResponsibleFilter(id)}
+            />
           </label>
           <label>
             <span>Ejecutor</span>
-            <select value={assigneeFilter ?? ''} onChange={(e) => onAssigneeFilter(e.target.value || null)}>
-              <option value="">Cualquiera</option>
-              {users.map((u) => <option key={u.id} value={u.id}>{u.full_name ?? u.email ?? u.id}</option>)}
-            </select>
+            <SearchableSelect
+              value={assigneeFilter ?? ''}
+              options={users.map((u) => ({ id: u.id, label: u.full_name ?? u.email ?? u.id }))}
+              placeholder="Cualquiera"
+              onChange={(id) => onAssigneeFilter(id)}
+            />
           </label>
           <label>
             <span>Estado</span>

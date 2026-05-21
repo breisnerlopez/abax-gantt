@@ -33,7 +33,6 @@ function clearAllLocalState() {
   try {
     localStorage.removeItem('abax.filters');
     localStorage.removeItem('abax.collapsed');
-    localStorage.removeItem('abax.scroll.date');
     localStorage.removeItem('abax.detail.visible');
   } catch { /* ignore */ }
 }
@@ -70,8 +69,6 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
   const [dateFrom, setDateFrom] = useState(() => searchParams.get('date_from') ?? readFilter('date_from'));
   const [dateTo, setDateTo] = useState(() => searchParams.get('date_to') ?? readFilter('date_to'));
   const [todaySignal, setTodaySignal] = useState(0);
-  const [collapseAllSignal, setCollapseAllSignal] = useState(0);
-  const handleCollapseAll = useCallback(() => setCollapseAllSignal((n) => n + 1), []);
   const [ganttScale, setGanttScale] = useState<'Día' | 'Semana' | 'Mes' | 'Año'>('Semana');
 
   useEffect(() => {
@@ -505,7 +502,6 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
         onToday={() => setTodaySignal((t) => t + 1)}
         scale={ganttScale}
         onScaleChange={setGanttScale}
-        onCollapseAll={handleCollapseAll}
       />
       <FilterBar
         search={searchTerm}
@@ -600,7 +596,6 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
                 canEditStructure={canEditStructure}
                 onValidationError={(message) => notify({ tone: 'error', title: 'Acción inválida', detail: message })}
                 todaySignal={todaySignal}
-                collapseAllSignal={collapseAllSignal}
                 scale={ganttScale}
                 onMoveComplete={() => notify({ tone: 'success', title: 'Movimiento guardado' })}
               />
