@@ -149,7 +149,8 @@ export async function handler(req: Request): Promise<Response> {
         ORDER BY
           (SELECT MIN(c.start_date) FROM wbs_nodes c WHERE c.project_id = wn.project_id AND c.start_date IS NOT NULL) ASC NULLS LAST,
           wn.project_id,
-          wn.path,
+          wn.parent_id NULLS FIRST,
+          wn.start_date ASC NULLS LAST,
           wn.sort_order
       `;
 
