@@ -9,7 +9,7 @@ Gestor de portafolio, WBS y cronogramas Gantt auto-contenido en una imagen Docke
 ## Quick Start
 
 ```bash
-docker pull ghcr.io/breisnerlopez/abax-gantt:v0.1.0
+docker pull ghcr.io/breisnerlopez/abax-gantt:v0.3.0
 
 docker run --rm --name abax-gantt -p 8000:8000 \
   -e DATABASE_URL='postgresql://abax:<password>@<host>:5432/abax_gantt' \
@@ -23,7 +23,7 @@ docker run --rm --name abax-gantt -p 8000:8000 \
   -e PUBLIC_BASE_PATH='/' \
   -e PUBLIC_API_BASE_URL='' \
   -v abax-gantt_data:/app/data/attachments \
-  -d ghcr.io/breisnerlopez/abax-gantt:v0.1.0
+  -d ghcr.io/breisnerlopez/abax-gantt:v0.3.0
 ```
 
 Accede en `http://localhost:8000`. El primer usuario que haga login con grupo `abax-admins` obtiene rol admin.
@@ -152,7 +152,7 @@ docker build -f deploy/Dockerfile -t abax-gantt:latest .
 ## Arquitectura
 
 ```
-docker pull ghcr.io/breisnerlopez/abax-gantt:v0.1.0
+docker pull ghcr.io/breisnerlopez/abax-gantt:v0.3.0
        │
        ▼
 ┌─────────────────────────────────────────┐
