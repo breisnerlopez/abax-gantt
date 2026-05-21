@@ -14,11 +14,14 @@ interface ToolbarProps {
   onToday: () => void;
   scale: 'Día' | 'Semana' | 'Mes' | 'Año';
   onScaleChange: (scale: 'Día' | 'Semana' | 'Mes' | 'Año') => void;
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
 }
 
 export function Toolbar({
   selectedName, onCreateProject, onCreateChild, canEditStructure,
   onExport, onMyTasks, myTasks, onFocusProject, focusProjectName, onToday, scale, onScaleChange,
+  isFullscreen, onToggleFullscreen,
 }: ToolbarProps) {
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
@@ -54,6 +57,9 @@ export function Toolbar({
         <button onClick={onFocusProject} disabled={!selectedName}>Enfocar proyecto</button>
       )}
       <span className="toolbar-spacer" />
+      <button onClick={onToggleFullscreen} title={isFullscreen ? 'Salir de pantalla completa' : 'Maximizar Gantt'}>
+        {isFullscreen ? '⛶ Salir' : '⛶ Pantalla completa'}
+      </button>
       <div className="export-menu" ref={exportRef}>
         <button onClick={() => setExportOpen((v) => !v)} aria-haspopup="menu" aria-expanded={exportOpen}>
           Exportar ▾

@@ -70,6 +70,7 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
   const [dateTo, setDateTo] = useState(() => searchParams.get('date_to') ?? readFilter('date_to'));
   const [todaySignal, setTodaySignal] = useState(0);
   const [ganttScale, setGanttScale] = useState<'Día' | 'Semana' | 'Mes' | 'Año'>('Semana');
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     saveFilters({ q: searchTerm, type: typeFilter ?? '', unscheduled: showUnscheduled ? '1' : '', my: myTasks ? '1' : '', focus: focusProjectId ?? '', project_id: projectFilter ?? '', responsible_id: responsibleFilter ?? '', assignee_id: assigneeFilter ?? '', status: statusFilter ?? '', date_from: dateFrom, date_to: dateTo });
@@ -482,6 +483,8 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
           <button onClick={() => toggleMobileMode(false)}>← Volver a la lista</button>
         </div>
       )}
+      {!isFullscreen && (
+      <>
       <Toolbar
         totalNodes={filteredNodes.length}
         selectedName={selectedNode?.name ?? null}
@@ -502,6 +505,8 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
         onToday={() => setTodaySignal((t) => t + 1)}
         scale={ganttScale}
         onScaleChange={setGanttScale}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={() => setIsFullscreen((v) => !v)}
       />
       <FilterBar
         search={searchTerm}
@@ -534,7 +539,10 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
         }}
         users={portfolio.data?.users ?? []}
       />
+      </>
+      )}
       <main className="workspace">
+        {!isFullscreen && (
         <BacklogPanel
           items={filteredBacklog}
           projects={portfolio.data?.projects ?? []}
@@ -544,6 +552,7 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
           onSelectNode={onSelectNode}
           onScheduleNode={handleScheduleNode}
         />
+        )}
         <section className="gantt-region">
           {portfolio.status === 'loading' && <GanttSkeleton />}
           {portfolio.status === 'error' && <StatusState title="No se pudo cargar" description={portfolio.error.message} />}
@@ -603,7 +612,7 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
             </Suspense>
           )}
         </section>
-        {detailVisible ? (
+        {!isFullscreen && detailVisible ? (
           <ErrorBoundary>
             <DetailPanel
               key={selectedNode?.id ?? 'empty'}
