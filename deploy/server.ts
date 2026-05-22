@@ -5,6 +5,7 @@ import { ensureStorageDir } from "./server/storage/init.ts";
 
 const PORT = parseInt(Deno.env.get("PORT") || "8000");
 const STORAGE_PATH = Deno.env.get("STORAGE_PATH") || "./data/attachments";
+const APP_VERSION = Deno.env.get("APP_VERSION") || new Date().toISOString().slice(0, 19).replace(/[-:]/g, '');
 
 function envPublic(name: string, fallbackName?: string, fallback = ""): string {
   return Deno.env.get(name) ?? (fallbackName ? Deno.env.get(fallbackName) : undefined) ?? fallback;
@@ -96,7 +97,7 @@ function serviceWorkerResponse(): Response {
   ];
 
   const body = `
-const CACHE_NAME = 'abax-gantt-v7';
+const CACHE_NAME = 'abax-${APP_VERSION}';
 const SHELL_URLS = ${jsonForScript(shellUrls)};
 
 self.addEventListener('install', (event) => {
@@ -136,10 +137,19 @@ self.addEventListener('fetch', (event) => {
 }
 
 function htmlShellResponse(): Response {
-  const html = Deno.readTextFileSync("./public/index.html").replace(
-    "<head>",
-    `<head>\n    <base href="${PUBLIC_BASE_PATH}">`,
-  );
+  const html = Deno.readTextFileSync("./public/index.html")
+    .replace(
+      "<head>",
+      `<head>\n    <base href="${PUBLIC_BASE_PATH}">`,
+    )
+    .replace(
+      'src="./config.js"',
+      `src="./config.js?v=${APP_VERSION}"`,
+    )
+    .replace(
+      'register(swUrl)',
+      `register(\`\${swUrl}?v=${APP_VERSION}\`)`,
+    );
 
   return withSecurityHeaders(new Response(html, {
     headers: {

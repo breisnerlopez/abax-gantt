@@ -9,6 +9,10 @@ RUN npm run build
 
 FROM denoland/deno:2.2.0
 WORKDIR /app
+
+ARG APP_VERSION
+ENV APP_VERSION=${APP_VERSION}
+
 COPY --from=frontend-build /app/poc/dist ./public
 COPY deploy/server.ts .
 COPY deploy/server/ ./server/
