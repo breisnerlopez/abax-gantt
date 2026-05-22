@@ -102,6 +102,7 @@ export async function handler(req: Request): Promise<Response> {
       const responsibleId = url.searchParams.get("responsible_id");
       const assigneeId = url.searchParams.get("assignee_id");
       const status = url.searchParams.get("status");
+      const activeOnly = url.searchParams.get("active_only") === "true";
       const dateFrom = url.searchParams.get("date_from");
       const dateTo = url.searchParams.get("date_to");
       const search = url.searchParams.get("search")?.trim();
@@ -114,7 +115,8 @@ export async function handler(req: Request): Promise<Response> {
         id: string;
         created_by: string;
         project_type_id: string | null;
-      }>(`SELECT id, created_by, project_type_id FROM projects`);
+        status: string;
+      }>(`SELECT id, created_by, project_type_id, status FROM projects`);
 
       const projects = projectsResult.rows;
       const visibleIds = await visibleProjectIds(db, auth, projects);
@@ -127,6 +129,7 @@ export async function handler(req: Request): Promise<Response> {
         .filter((p) => visibleIds.has(p.id))
         .filter((p) => !projectId || p.id === projectId)
         .filter((p) => !projectTypeId || p.project_type_id === projectTypeId)
+        .filter((p) => !activeOnly || p.status !== 'archived')
         .map((p) => p.id);
 
       if (allowedIds.length === 0) return okResponse({ data: [], count: 0 });
@@ -165,6 +168,24 @@ export async function handler(req: Request): Promise<Response> {
 
       let filtered = nodes;
       if (status) filtered = filtered.filter((n) => nodeStatus(n) === status);
+
+      if (activeOnly) {
+        const projectAllDone = new Map<string, boolean>();
+        for (const n of filtered) {
+          if (n.type === 'project') continue;
+          const pid = n.project_id as string;
+          if (!projectAllDone.has(pid)) projectAllDone.set(pid, true);
+          if ((n.progress as number ?? 0) < 1) projectAllDone.set(pid, false);
+        }
+        const closedProjectIds = new Set<string>();
+        for (const n of filtered) {
+          if (n.type !== 'project') continue;
+          const isManualClosed = ['completado','cancelado'].includes(n.status as string ?? '');
+          const isAllDone = projectAllDone.get(n.project_id as string) === true;
+          if (isManualClosed || isAllDone) closedProjectIds.add(n.project_id as string);
+        }
+        filtered = filtered.filter((n) => !closedProjectIds.has(n.project_id as string));
+      }
 
       const requestedAssigneeId = myTasks ? auth.userId : assigneeId;
       if (requestedAssigneeId) {

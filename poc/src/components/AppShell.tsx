@@ -15,11 +15,12 @@ interface AppShellProps {
   /** Control on-demand del panel de detalle */
   detailVisible?: boolean;
   onToggleDetail?: () => void;
+  fullscreen?: boolean;
 }
 
 const money = new Intl.NumberFormat('es-MX', { notation: 'compact', style: 'currency', currency: 'MXN' });
 
-export function AppShell({ children, summary, userName, onLogout, onSearch, onOpenAdmin, breadcrumb, detailVisible, onToggleDetail }: AppShellProps) {
+export function AppShell({ children, summary, userName, onLogout, onSearch, onOpenAdmin, breadcrumb, detailVisible, onToggleDetail, fullscreen }: AppShellProps) {
   const { theme, toggle } = useTheme();
   const [search, setSearch] = useState('');
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -62,6 +63,7 @@ export function AppShell({ children, summary, userName, onLogout, onSearch, onOp
 
   return (
     <div className="app-shell">
+      {!fullscreen && (
       <header className="topbar">
         <div className="brand-lockup">
           <span className="brand-mark">A</span>
@@ -96,6 +98,8 @@ export function AppShell({ children, summary, userName, onLogout, onSearch, onOp
         </div>
         <button className="ghost-button" onClick={onLogout}>Salir</button>
       </header>
+      )}
+      {!fullscreen && (
       <section
         className={`kpi-strip ${kpiExpanded ? 'kpi-strip--expanded' : ''}`}
         aria-label="Indicadores del portafolio"
@@ -132,6 +136,7 @@ export function AppShell({ children, summary, userName, onLogout, onSearch, onOp
           {kpiExpanded ? '▴' : '▾'}
         </button>
       </section>
+      )}
       {children}
       <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>

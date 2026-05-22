@@ -22,6 +22,8 @@ interface FilterBarProps {
   onDateFrom: (date: string) => void;
   dateTo: string;
   onDateTo: (date: string) => void;
+  activeOnly: boolean;
+  onActiveOnly: (active: boolean) => void;
   totalVisible: number;
   hasActiveFilters: boolean;
   onClear: () => void;
@@ -46,6 +48,7 @@ export function FilterBar({
   assigneeFilter, onAssigneeFilter,
   statusFilter, onStatusFilter,
   dateFrom, onDateFrom, dateTo, onDateTo,
+  activeOnly, onActiveOnly,
   totalVisible, hasActiveFilters, onClear, users,
 }: FilterBarProps) {
   const filters: string[] = [];
@@ -88,6 +91,12 @@ export function FilterBar({
         onClick={() => onShowUnscheduled(!showUnscheduled)}
       >
         Solo backlog
+      </button>
+      <button
+        className={`filter-chip-btn ${activeOnly ? 'is-active' : ''}`}
+        onClick={() => onActiveOnly(!activeOnly)}
+      >
+        Ocultar cerrados
       </button>
       <button
         className={`filter-more ${moreActive ? 'is-active' : ''}`}

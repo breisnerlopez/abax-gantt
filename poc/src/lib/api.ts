@@ -102,6 +102,7 @@ export interface PortfolioFilters {
   search?: string | null;
   my_tasks?: boolean;
   unscheduled?: boolean;
+  active_only?: boolean;
 }
 
 export async function loadPortfolio(token: string, filters?: PortfolioFilters): Promise<PortfolioData> {
@@ -116,6 +117,7 @@ export async function loadPortfolio(token: string, filters?: PortfolioFilters): 
   if (filters?.search) queryParams.set('search', filters.search);
   if (filters?.unscheduled) queryParams.set('unscheduled', 'true');
   if (filters?.my_tasks) queryParams.set('my_tasks', 'true');
+  if (filters?.active_only) queryParams.set('active_only', 'true');
   const filterStr = queryParams.toString();
 
   const [projects, users, nodes, backlog, dependencies, summary] = await Promise.all([

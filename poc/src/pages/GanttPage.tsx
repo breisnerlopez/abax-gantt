@@ -68,13 +68,14 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
   const [statusFilter, setStatusFilter] = useState<string | null>(() => searchParams.get('status') || readFilter('status') || null);
   const [dateFrom, setDateFrom] = useState(() => searchParams.get('date_from') ?? readFilter('date_from'));
   const [dateTo, setDateTo] = useState(() => searchParams.get('date_to') ?? readFilter('date_to'));
+  const [activeOnly, setActiveOnly] = useState(() => searchParams.get('active_only') !== 'false');
   const [todaySignal, setTodaySignal] = useState(0);
   const [ganttScale, setGanttScale] = useState<'Día' | 'Semana' | 'Mes' | 'Año'>('Semana');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
-    saveFilters({ q: searchTerm, type: typeFilter ?? '', unscheduled: showUnscheduled ? '1' : '', my: myTasks ? '1' : '', focus: focusProjectId ?? '', project_id: projectFilter ?? '', responsible_id: responsibleFilter ?? '', assignee_id: assigneeFilter ?? '', status: statusFilter ?? '', date_from: dateFrom, date_to: dateTo });
-  }, [searchTerm, typeFilter, showUnscheduled, myTasks, focusProjectId, projectFilter, responsibleFilter, assigneeFilter, statusFilter, dateFrom, dateTo]);
+    saveFilters({ q: searchTerm, type: typeFilter ?? '', unscheduled: showUnscheduled ? '1' : '', my: myTasks ? '1' : '', focus: focusProjectId ?? '', project_id: projectFilter ?? '', responsible_id: responsibleFilter ?? '', assignee_id: assigneeFilter ?? '', status: statusFilter ?? '', date_from: dateFrom, date_to: dateTo, active_only: activeOnly ? '1' : '' });
+  }, [searchTerm, typeFilter, showUnscheduled, myTasks, focusProjectId, projectFilter, responsibleFilter, assigneeFilter, statusFilter, dateFrom, dateTo, activeOnly]);
 
   // Panel de detalle on-demand: el usuario lo abre/cierra explícitamente.
   // Default cerrado para mantener el Gantt con máximo ancho.
@@ -114,7 +115,8 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
     status: statusFilter ?? null,
     date_from: dateFrom || null,
     date_to: dateTo || null,
-  }), [focusProjectId, projectFilter, searchTerm, myTasks, showUnscheduled, responsibleFilter, assigneeFilter, statusFilter, dateFrom, dateTo]);
+    active_only: activeOnly || undefined,
+  }), [focusProjectId, projectFilter, searchTerm, myTasks, showUnscheduled, responsibleFilter, assigneeFilter, statusFilter, dateFrom, dateTo, activeOnly]);
 
   const portfolio = usePortfolio(token, portfolioFilters);
 
@@ -456,7 +458,7 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
   };
 
   return (
-    <AppShell summary={portfolio.data?.summary ?? null} userName={userName} onLogout={onLogout} onSearch={handleSearch} onOpenAdmin={() => navigate('/admin')} breadcrumb={focusProjectName ? `Proyecto · ${focusProjectName}` : (myTasks ? 'Mis tareas' : 'Vista consolidada')} detailVisible={detailVisible} onToggleDetail={toggleDetail}>
+    <AppShell summary={portfolio.data?.summary ?? null} userName={userName} onLogout={onLogout} onSearch={handleSearch} onOpenAdmin={() => navigate('/admin')} breadcrumb={focusProjectName ? `Proyecto · ${focusProjectName}` : (myTasks ? 'Mis tareas' : 'Vista consolidada')} detailVisible={detailVisible} onToggleDetail={toggleDetail} fullscreen={isFullscreen}>
       {showMobileList ? (
         <MobileTaskList
           nodes={portfolio.data?.nodes ?? []}
@@ -478,6 +480,11 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
         />
       ) : (
       <>
+      {isFullscreen && (
+        <button className="fullscreen-exit" onClick={() => setIsFullscreen(false)} title="Salir de pantalla completa">
+          ⛶ Salir
+        </button>
+      )}
       {isMobile && mobileForceGantt && (
         <div className="mobile-back-to-list">
           <button onClick={() => toggleMobileMode(false)}>← Volver a la lista</button>
@@ -528,12 +535,14 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
         onDateFrom={(d) => { setDateFrom(d); syncUrl({ date_from: d }); }}
         dateTo={dateTo}
         onDateTo={(d) => { setDateTo(d); syncUrl({ date_to: d }); }}
+        activeOnly={activeOnly}
+        onActiveOnly={(v) => { setActiveOnly(v); syncUrl({ active_only: v ? '' : 'false' }); }}
         totalVisible={filteredNodes.length + filteredBacklog.length}
         hasActiveFilters={hasActiveFilters}
         onClear={() => {
           setSearchTerm(''); setTypeFilter(null); setShowUnscheduled(false); setMyTasks(false);
           setFocusProjectId(null); setProjectFilter(null); setResponsibleFilter(null);
-          setAssigneeFilter(null); setStatusFilter(null); setDateFrom(''); setDateTo('');
+          setAssigneeFilter(null); setStatusFilter(null); setDateFrom(''); setDateTo(''); setActiveOnly(true);
           clearAllLocalState();
           syncUrl({ q: '', type: '', unscheduled: '', my: '', focus: '', project_id: '', responsible_id: '', assignee_id: '', status: '', date_from: '', date_to: '' });
         }}

@@ -719,6 +719,31 @@ kbd { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; fo
   background: none !important;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   Fullscreen exit button
+   ══════════════════════════════════════════════════════════════ */
+.fullscreen-exit {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 1000;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0,0,0,.25);
+  opacity: .85;
+}
+.fullscreen-exit:hover {
+  opacity: 1;
+  box-shadow: 0 4px 16px rgba(0,0,0,.3);
+}
+
 @media (max-width: 768px) {
   .detail-rail { display: none; }
 }
