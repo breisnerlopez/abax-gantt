@@ -9,7 +9,7 @@ Gestor de portafolio, WBS y cronogramas Gantt auto-contenido en una imagen Docke
 ## Quick Start
 
 ```bash
-docker pull ghcr.io/breisnerlopez/abax-gantt:v0.4.0
+docker pull ghcr.io/breisnerlopez/abax-gantt:v0.6.0
 
 docker run --rm --name abax-gantt -p 8000:8000 \
   -e DATABASE_URL='postgresql://abax:<password>@<host>:5432/abax_gantt' \
@@ -152,7 +152,7 @@ docker build -f deploy/Dockerfile -t abax-gantt:latest .
 ## Arquitectura
 
 ```
-docker pull ghcr.io/breisnerlopez/abax-gantt:v0.4.0
+docker pull ghcr.io/breisnerlopez/abax-gantt:v0.6.0
        │
        ▼
 ┌─────────────────────────────────────────┐
