@@ -60,6 +60,7 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') ?? readFilter('q'));
   const [typeFilter, setTypeFilter] = useState<NodeType | null>(() => (searchParams.get('type') as NodeType) || readFilter('type') as NodeType || null);
   const [showUnscheduled, setShowUnscheduled] = useState(() => searchParams.get('unscheduled') === '1');
+  const [showBacklogInGantt, setShowBacklogInGantt] = useState(() => searchParams.get('backlog_gantt') !== 'false');
   const [myTasks, setMyTasks] = useState(() => searchParams.get('my') === '1');
   const [focusProjectId, setFocusProjectId] = useState<string | null>(() => searchParams.get('focus') || readFilter('focus') || null);
   const [projectFilter, setProjectFilter] = useState<string | null>(() => searchParams.get('project_id') || readFilter('project_id') || null);
@@ -74,8 +75,8 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
-    saveFilters({ q: searchTerm, type: typeFilter ?? '', unscheduled: showUnscheduled ? '1' : '', my: myTasks ? '1' : '', focus: focusProjectId ?? '', project_id: projectFilter ?? '', responsible_id: responsibleFilter ?? '', assignee_id: assigneeFilter ?? '', status: statusFilter ?? '', date_from: dateFrom, date_to: dateTo, active_only: activeOnly ? '1' : '' });
-  }, [searchTerm, typeFilter, showUnscheduled, myTasks, focusProjectId, projectFilter, responsibleFilter, assigneeFilter, statusFilter, dateFrom, dateTo, activeOnly]);
+    saveFilters({ q: searchTerm, type: typeFilter ?? '', unscheduled: showUnscheduled ? '1' : '', my: myTasks ? '1' : '', focus: focusProjectId ?? '', project_id: projectFilter ?? '', responsible_id: responsibleFilter ?? '', assignee_id: assigneeFilter ?? '', status: statusFilter ?? '', date_from: dateFrom, date_to: dateTo, active_only: activeOnly ? '1' : '', backlog_gantt: showBacklogInGantt ? '1' : '' });
+  }, [searchTerm, typeFilter, showUnscheduled, myTasks, focusProjectId, projectFilter, responsibleFilter, assigneeFilter, statusFilter, dateFrom, dateTo, activeOnly, showBacklogInGantt]);
 
   // Panel de detalle on-demand: el usuario lo abre/cierra explícitamente.
   // Default cerrado para mantener el Gantt con máximo ancho.
@@ -272,7 +273,7 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
       const isInput = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement;
-      if (isInput) return;
+      if (isInput && event.key !== 'Escape') return;
       if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === 'N') { event.preventDefault(); setCreateMode('project'); return; }
       if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key === 'k') { event.preventDefault(); setBacklogOpen((prev) => !prev); return; }
       if ((event.metaKey || event.ctrlKey) && event.key === 'Backspace') { event.preventDefault(); if (selectedNode && canEditStructure && !selectedNode.is_unscheduled && selectedNode.type !== 'project') void handleUnscheduleNode(selectedNode); return; }
@@ -282,14 +283,30 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
     return () => window.removeEventListener('keydown', listener);
   }, [canEditStructure, handleUnscheduleNode, selectedNode]);
 
+  const sessionEmail = session?.userEmail ?? null;
+  const sessionName = session?.userName ?? null;
+  const portfolioUsers = portfolio.data?.users;
+  const currentUserId = useMemo(() => {
+    const users = portfolioUsers ?? [];
+    const email = sessionEmail?.toLowerCase() ?? null;
+    if (email) {
+      const byEmail = users.find((u) => (u.email ?? '').toLowerCase() === email);
+      if (byEmail) return byEmail.id;
+    }
+    if (sessionName) {
+      const byName = users.find((u) => u.full_name === sessionName);
+      if (byName) return byName.id;
+    }
+    return null;
+  }, [portfolioUsers, sessionEmail, sessionName]);
+
   const filteredNodes = useMemo(() => {
     let nodes = portfolio.data?.nodes ?? [];
     if (focusProjectId) {
       nodes = nodes.filter((n) => n.project_id === focusProjectId);
     }
-    if (myTasks) {
-      const myIds = new Set(portfolio.data?.users.filter((u) => u.id === session?.userName || u.full_name === session?.userName).map((u) => u.id));
-      nodes = nodes.filter((n) => n.responsible_id && myIds.has(n.responsible_id) || n.task_assignees?.some((a) => myIds.has(a.user_id)));
+    if (myTasks && currentUserId) {
+      nodes = nodes.filter((n) => n.responsible_id === currentUserId || n.task_assignees?.some((a) => a.user_id === currentUserId));
     }
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
@@ -298,14 +315,13 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
     if (typeFilter) nodes = nodes.filter((n) => n.type === typeFilter);
     if (showUnscheduled) nodes = nodes.filter((n) => n.is_unscheduled);
     return nodes;
-  }, [portfolio.data?.nodes, portfolio.data?.users, searchTerm, typeFilter, showUnscheduled, myTasks, focusProjectId, session?.userName]);
+  }, [portfolio.data?.nodes, portfolio.data?.users, searchTerm, typeFilter, showUnscheduled, myTasks, focusProjectId, currentUserId]);
 
   const filteredBacklog = useMemo(() => {
     let backlog = portfolio.data?.backlog ?? [];
     if (focusProjectId) backlog = backlog.filter((n) => n.project_id === focusProjectId);
-    if (myTasks) {
-      const myIds = new Set(portfolio.data?.users.filter((u) => u.id === session?.userName || u.full_name === session?.userName).map((u) => u.id));
-      backlog = backlog.filter((n) => n.responsible_id && myIds.has(n.responsible_id) || n.task_assignees?.some((a) => myIds.has(a.user_id)));
+    if (myTasks && currentUserId) {
+      backlog = backlog.filter((n) => n.responsible_id === currentUserId || n.task_assignees?.some((a) => a.user_id === currentUserId));
     }
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
@@ -313,7 +329,7 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
     }
     if (typeFilter) backlog = backlog.filter((n) => n.type === typeFilter);
     return backlog;
-  }, [portfolio.data?.backlog, portfolio.data?.users, searchTerm, typeFilter, myTasks, focusProjectId, session?.userName]);
+  }, [portfolio.data?.backlog, portfolio.data?.users, searchTerm, typeFilter, myTasks, focusProjectId, currentUserId]);
 
   const syncUrl = useCallback((params: Record<string, string>) => {
     const next = new URLSearchParams(searchParams);
@@ -385,23 +401,8 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
     }
   }, [onSelectNode, portfolio.data]);
 
-  // currentUserId desde portfolio.users por email — para filtrar tareas del usuario en mobile.
-  const sessionEmail = session?.userEmail ?? null;
-  const sessionName = session?.userName ?? null;
-  const portfolioUsers = portfolio.data?.users;
-  const currentUserId = useMemo(() => {
-    const users = portfolioUsers ?? [];
-    const email = sessionEmail?.toLowerCase() ?? null;
-    if (email) {
-      const byEmail = users.find((u) => (u.email ?? '').toLowerCase() === email);
-      if (byEmail) return byEmail.id;
-    }
-    if (sessionName) {
-      const byName = users.find((u) => u.full_name === sessionName);
-      if (byName) return byName.id;
-    }
-    return null;
-  }, [portfolioUsers, sessionEmail, sessionName]);
+  // currentUserId ya calculado arriba (antes de filteredNodes).
+  // Se movió para poder usarlo en el filtro myTasks y filteredBacklog.
 
   if (!token) return <Navigate to="/login" replace />;
   const userName = session?.userName ?? 'Usuario';
@@ -457,6 +458,20 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
     }
   };
 
+  const ganttNodes = useMemo(() => {
+    if (!showBacklogInGantt) return filteredNodes;
+    const today = new Date().toISOString().slice(0, 10);
+    const backlogAsGantt = filteredBacklog.map((n) => ({
+      ...n,
+      is_unscheduled: false as boolean,
+      start_date: n.start_date ?? today,
+      end_date: n.end_date ?? today,
+      color: n.color ?? '#b0b5c1',
+      _from_backlog: true as boolean,
+    }));
+    return [...filteredNodes, ...backlogAsGantt];
+  }, [filteredNodes, filteredBacklog, showBacklogInGantt]);
+
   return (
     <AppShell summary={portfolio.data?.summary ?? null} userName={userName} onLogout={onLogout} onSearch={handleSearch} onOpenAdmin={() => navigate('/admin')} breadcrumb={focusProjectName ? `Proyecto · ${focusProjectName}` : (myTasks ? 'Mis tareas' : 'Vista consolidada')} detailVisible={detailVisible} onToggleDetail={toggleDetail} fullscreen={isFullscreen}>
       {showMobileList ? (
@@ -492,6 +507,42 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
       )}
       {!isFullscreen && (
       <>
+      <FilterBar
+        search={searchTerm}
+        onSearch={(q) => { setSearchTerm(q); syncUrl({ q: q || '' }); }}
+        typeFilter={typeFilter}
+        onTypeFilter={(t) => { setTypeFilter(t); syncUrl({ type: t ?? '' }); }}
+        showUnscheduled={showUnscheduled}
+        onShowUnscheduled={(s) => { setShowUnscheduled(s); syncUrl({ unscheduled: s ? '1' : '' }); }}
+        showBacklogInGantt={showBacklogInGantt}
+        onShowBacklogInGantt={(s) => { setShowBacklogInGantt(s); syncUrl({ backlog_gantt: s ? '' : 'false' }); }}
+        projectFilter={projectFilter}
+        onProjectFilter={(id) => { setProjectFilter(id); syncUrl({ project_id: id ?? '' }); }}
+        projectOptions={portfolio.data?.projects ?? []}
+        responsibleFilter={responsibleFilter}
+        onResponsibleFilter={(id) => { setResponsibleFilter(id); syncUrl({ responsible_id: id ?? '' }); }}
+        assigneeFilter={assigneeFilter}
+        onAssigneeFilter={(id) => { setAssigneeFilter(id); syncUrl({ assignee_id: id ?? '' }); }}
+        statusFilter={statusFilter}
+        onStatusFilter={(s) => { setStatusFilter(s); syncUrl({ status: s ?? '' }); }}
+        dateFrom={dateFrom}
+        onDateFrom={(d) => { setDateFrom(d); syncUrl({ date_from: d }); }}
+        dateTo={dateTo}
+        onDateTo={(d) => { setDateTo(d); syncUrl({ date_to: d }); }}
+        activeOnly={activeOnly}
+        onActiveOnly={(v) => { setActiveOnly(v); syncUrl({ active_only: v ? '' : 'false' }); }}
+        totalVisible={filteredNodes.length + filteredBacklog.length}
+        hasActiveFilters={hasActiveFilters}
+        onClear={() => {
+          setSearchTerm(''); setTypeFilter(null); setShowUnscheduled(false); setMyTasks(false);
+          setShowBacklogInGantt(true);
+          setFocusProjectId(null); setProjectFilter(null); setResponsibleFilter(null);
+          setAssigneeFilter(null); setStatusFilter(null); setDateFrom(''); setDateTo(''); setActiveOnly(true);
+          clearAllLocalState();
+          syncUrl({ q: '', type: '', unscheduled: '', my: '', focus: '', project_id: '', responsible_id: '', assignee_id: '', status: '', date_from: '', date_to: '', backlog_gantt: '' });
+        }}
+        users={portfolio.data?.users ?? []}
+      />
       <Toolbar
         totalNodes={filteredNodes.length}
         selectedName={selectedNode?.name ?? null}
@@ -515,39 +566,6 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
         isFullscreen={isFullscreen}
         onToggleFullscreen={() => setIsFullscreen((v) => !v)}
       />
-      <FilterBar
-        search={searchTerm}
-        onSearch={(q) => { setSearchTerm(q); syncUrl({ q: q || '' }); }}
-        typeFilter={typeFilter}
-        onTypeFilter={(t) => { setTypeFilter(t); syncUrl({ type: t ?? '' }); }}
-        showUnscheduled={showUnscheduled}
-        onShowUnscheduled={(s) => { setShowUnscheduled(s); syncUrl({ unscheduled: s ? '1' : '' }); }}
-        projectFilter={projectFilter}
-        onProjectFilter={(id) => { setProjectFilter(id); syncUrl({ project_id: id ?? '' }); }}
-        projectOptions={portfolio.data?.projects ?? []}
-        responsibleFilter={responsibleFilter}
-        onResponsibleFilter={(id) => { setResponsibleFilter(id); syncUrl({ responsible_id: id ?? '' }); }}
-        assigneeFilter={assigneeFilter}
-        onAssigneeFilter={(id) => { setAssigneeFilter(id); syncUrl({ assignee_id: id ?? '' }); }}
-        statusFilter={statusFilter}
-        onStatusFilter={(s) => { setStatusFilter(s); syncUrl({ status: s ?? '' }); }}
-        dateFrom={dateFrom}
-        onDateFrom={(d) => { setDateFrom(d); syncUrl({ date_from: d }); }}
-        dateTo={dateTo}
-        onDateTo={(d) => { setDateTo(d); syncUrl({ date_to: d }); }}
-        activeOnly={activeOnly}
-        onActiveOnly={(v) => { setActiveOnly(v); syncUrl({ active_only: v ? '' : 'false' }); }}
-        totalVisible={filteredNodes.length + filteredBacklog.length}
-        hasActiveFilters={hasActiveFilters}
-        onClear={() => {
-          setSearchTerm(''); setTypeFilter(null); setShowUnscheduled(false); setMyTasks(false);
-          setFocusProjectId(null); setProjectFilter(null); setResponsibleFilter(null);
-          setAssigneeFilter(null); setStatusFilter(null); setDateFrom(''); setDateTo(''); setActiveOnly(true);
-          clearAllLocalState();
-          syncUrl({ q: '', type: '', unscheduled: '', my: '', focus: '', project_id: '', responsible_id: '', assignee_id: '', status: '', date_from: '', date_to: '' });
-        }}
-        users={portfolio.data?.users ?? []}
-      />
       </>
       )}
       <main className="workspace">
@@ -565,14 +583,14 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
         <section className="gantt-region">
           {portfolio.status === 'loading' && <GanttSkeleton />}
           {portfolio.status === 'error' && <StatusState title="No se pudo cargar" description={portfolio.error.message} />}
-          {portfolio.status === 'ready' && filteredNodes.length === 0 && (
+          {portfolio.status === 'ready' && ganttNodes.length === 0 && (
             <StatusState title="Empieza tu primer proyecto" description="Crea un proyecto para iniciar la estructura WBS." action="+ Nuevo proyecto" />
           )}
-          {portfolio.status === 'ready' && filteredNodes.length > 0 && (
+          {portfolio.status === 'ready' && ganttNodes.length > 0 && (
             <Suspense fallback={<GanttSkeleton />}>
               <ErrorBoundary>
                 <GanttCanvas
-                nodes={filteredNodes}
+                nodes={ganttNodes}
                 dependencies={portfolio.data.dependencies}
                 users={portfolio.data.users}
                 onSelectNode={onSelectNode}

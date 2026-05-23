@@ -170,13 +170,15 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       },
     ];
 
-    gantt.templates.task_class = (_start, _end, task: { id?: string | number; type?: string }) => {
+    gantt.templates.task_class = (_start, _end, task: { id?: string | number; type?: string; isUnscheduled?: boolean }) => {
       const selected = task.id != null && gantt.isSelectedTask(String(task.id));
-      return `task-${task.type ?? 'task'}${selected ? ' task-selected' : ''}`;
+      const unscheduledClass = task.isUnscheduled ? ' task-unscheduled' : '';
+      return `task-${task.type ?? 'task'}${unscheduledClass}${selected ? ' task-selected' : ''}`;
     };
-    gantt.templates.grid_row_class = (_start, _end, task: { id?: string | number; type?: string }) => {
+    gantt.templates.grid_row_class = (_start, _end, task: { id?: string | number; type?: string; isUnscheduled?: boolean }) => {
       const selected = task.id != null && gantt.isSelectedTask(String(task.id));
-      return `row-${task.type ?? 'task'}${selected ? ' row-selected' : ''}`;
+      const unscheduledClass = task.isUnscheduled ? ' row-unscheduled' : '';
+      return `row-${task.type ?? 'task'}${unscheduledClass}${selected ? ' row-selected' : ''}`;
     };
     gantt.templates.task_text = (start, end, task: { text?: string }) => {
       const width = Math.abs(gantt.posFromDate(end) - gantt.posFromDate(start));

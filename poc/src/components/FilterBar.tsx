@@ -9,6 +9,8 @@ interface FilterBarProps {
   onTypeFilter: (type: NodeType | null) => void;
   showUnscheduled: boolean;
   onShowUnscheduled: (show: boolean) => void;
+  showBacklogInGantt: boolean;
+  onShowBacklogInGantt: (show: boolean) => void;
   projectFilter: string | null;
   onProjectFilter: (id: string | null) => void;
   projectOptions: Array<{ id: string; name: string }>;
@@ -43,6 +45,7 @@ const statusLabels: Record<string, string> = { pendiente: 'Pendiente', en_progre
 
 export function FilterBar({
   search, onSearch, typeFilter, onTypeFilter, showUnscheduled, onShowUnscheduled,
+  showBacklogInGantt, onShowBacklogInGantt,
   projectFilter, onProjectFilter, projectOptions,
   responsibleFilter, onResponsibleFilter,
   assigneeFilter, onAssigneeFilter,
@@ -64,9 +67,9 @@ export function FilterBar({
   if (assigneeName) filters.push(`Asig: ${assigneeName}`);
   if (statusFilter) filters.push(statusLabels[statusFilter] ?? statusFilter);
 
-  // Esencial siempre visible. El resto se oculta detrás de "Más filtros".
   const [moreOpen, setMoreOpen] = useState(false);
   const moreActive = !!(projectFilter || responsibleFilter || assigneeFilter || statusFilter || dateFrom || dateTo);
+  const advancedCount = [projectFilter, responsibleFilter, assigneeFilter, statusFilter, dateFrom && dateFrom, dateTo && dateTo].filter(Boolean).length;
 
   return (
     <div className="filter-bar">
@@ -99,11 +102,18 @@ export function FilterBar({
         Ocultar cerrados
       </button>
       <button
+        className={`filter-chip-btn ${showBacklogInGantt ? 'is-active' : ''}`}
+        onClick={() => onShowBacklogInGantt(!showBacklogInGantt)}
+        title="Mostrar tareas del backlog como barras grises en el Gantt"
+      >
+        Backlog visible
+      </button>
+      <button
         className={`filter-more ${moreActive ? 'is-active' : ''}`}
         onClick={() => setMoreOpen((v) => !v)}
         aria-expanded={moreOpen}
       >
-        Más filtros {moreActive ? '●' : '▾'}
+        Más filtros {moreActive ? `(${advancedCount})` : '▾'}
       </button>
       {filters.length > 0 && (
         <div className="filter-chips-row">

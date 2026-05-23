@@ -12,6 +12,7 @@ export interface GanttTask {
   color?: string;
   status?: string;
   node: WbsNode;
+  isUnscheduled?: boolean;
 }
 
 export interface GanttLink {
@@ -42,7 +43,7 @@ function computeNodeStatus(node: WbsNode): string {
 }
 
 export function toGanttData(nodes: WbsNode[], dependencies: Dependency[], collapsedIds?: Set<string>) {
-  const scheduledNodes = nodes.filter((node) => !node.is_unscheduled && node.start_date);
+  const scheduledNodes = nodes.filter((node) => !node.is_unscheduled && (node.start_date || node.type === 'project'));
   const existingIds = new Set(scheduledNodes.map((node) => node.id));
 
   const data: GanttTask[] = scheduledNodes.map((node) => ({
@@ -56,6 +57,7 @@ export function toGanttData(nodes: WbsNode[], dependencies: Dependency[], collap
     open: collapsedIds ? !collapsedIds.has(node.id) : true,
     color: node.color ?? undefined,
     status: computeNodeStatus(node),
+    isUnscheduled: (node as WbsNode & { _from_backlog?: boolean })._from_backlog === true,
     node,
   }));
 

@@ -1,5 +1,5 @@
 import { assertCanManageNode, authenticate } from "./_shared/auth.ts";
-import { getClient } from "./_shared/db.ts";
+import { getClient, type DbClient } from "./_shared/db.ts";
 import { ApiError, handleCors, handleError, okResponse } from "./_shared/errors.ts";
 import { optionalString, optionalUuid, parseNodeType, readJson, routeId } from "./_shared/validation.ts";
 
@@ -56,6 +56,10 @@ export async function handler(req: Request): Promise<Response> {
         [...values, id],
       );
       const result = await db.query(`SELECT * FROM wbs_nodes WHERE id = $1`, [id]);
+
+      if (body.start_date !== undefined || body.end_date !== undefined) {
+        await propagateDatesToAncestors(db, result.rows[0] as Record<string, unknown>);
+      }
       return okResponse({ data: result.rows[0] });
     }
 
@@ -70,5 +74,25 @@ export async function handler(req: Request): Promise<Response> {
     throw new ApiError(405, "Metodo no permitido");
   } catch (error) {
     return handleError(error);
+  }
+}
+
+async function propagateDatesToAncestors(db: DbClient, node: Record<string, unknown>) {
+  const nodeId = node.id as string;
+  let parentId = node.parent_id as string | null;
+  let safety = 0;
+  while (parentId && safety < 20) {
+    await db.query(
+      `UPDATE wbs_nodes SET
+         start_date = (SELECT MIN(start_date) FROM wbs_nodes WHERE parent_id = $1 AND start_date IS NOT NULL),
+         end_date   = (SELECT MAX(end_date)   FROM wbs_nodes WHERE parent_id = $1 AND end_date IS NOT NULL),
+         updated_at = now()
+       WHERE id = $1 AND type IN ('project', 'stage', 'group')`,
+      [parentId],
+    );
+    const parent = await db.query(`SELECT id, parent_id FROM wbs_nodes WHERE id = $1`, [parentId]);
+    if (parent.rows.length === 0) break;
+    parentId = (parent.rows[0] as Record<string, string | null>).parent_id ?? null;
+    safety++;
   }
 }

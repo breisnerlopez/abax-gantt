@@ -333,6 +333,11 @@ kbd { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; fo
 .task-stage { border: 1.5px dashed var(--proj-violet) !important; background: repeating-linear-gradient(45deg, #efeafb 0 6px, #dce0fc 6px 12px) !important; }
 .task-group { background: var(--proj-teal) !important; opacity: .82; }
 .task-milestone { background: var(--warning) !important; border-radius: 3px !important; }
+.task-unscheduled { background: #d4d6dc !important; opacity: .55; border: 1.5px dashed #a0a3b0 !important; }
+.task-unscheduled .gantt_task_progress { background: rgba(0,0,0,.08) !important; }
+.task-unscheduled .gantt-bar-label { color: var(--text-secondary); text-shadow: none; }
+.row-unscheduled .gantt_tree_content { color: var(--text-tertiary); font-style: italic; }
+.row-unscheduled .gantt_cell { color: var(--text-tertiary); }
 .task-selected { box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px rgba(77, 91, 216, .22) !important; filter: saturate(1.18) contrast(1.06); z-index: 4; }
 .row-selected, .row-selected.odd, .gantt_task_row.gantt_selected, .gantt_row.gantt_selected { background: color-mix(in srgb, var(--accent-soft) 70%, var(--surface)) !important; box-shadow: inset 3px 0 0 var(--accent); }
 .row-selected .gantt_tree_content { color: var(--accent) !important; font-weight: 800; }
