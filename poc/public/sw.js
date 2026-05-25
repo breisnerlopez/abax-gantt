@@ -1,4 +1,4 @@
-const CACHE_NAME = 'abax-gantt-v5';
+const CACHE_NAME = 'abax-gantt-v6';
 const SHELL_URLS = [
   '/abax-gantt/',
   '/abax-gantt/login',
