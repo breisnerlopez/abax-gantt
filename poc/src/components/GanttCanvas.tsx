@@ -259,12 +259,16 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       if (!node || node.type === 'project') return;
 
       const startDate = (item as { start_date?: Date | string }).start_date;
-      const duration = (item as { duration?: number }).duration ?? 1;
+      const duration = Math.max(1, Math.round((item as { duration?: number }).duration ?? 1));
       if (!startDate) return;
       const start = startDate instanceof Date ? startDate : new Date(startDate);
       if (Number.isNaN(start.getTime())) return;
-      const end = new Date(start.getTime());
-      end.setDate(end.getDate() + Math.max(0, duration - 1));
+
+      // DHTMLX Gantt usa internamente end_date como límite exclusivo.
+      // Nuestra API/DB usa end_date inclusivo (YYYY-MM-DD). Convertimos aquí.
+      const endExclusive = gantt.calculateEndDate({ start_date: start, duration, unit: 'day' });
+      const end = new Date(endExclusive.getTime());
+      end.setDate(end.getDate() - 1);
       // Persistimos en YYYY-MM-DD usando calendario local, no UTC.
       // Usar toISOString() desplaza el día en TZ != UTC.
       const startStr = formatLocalYmd(start);
@@ -287,10 +291,15 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       // el update viene de drag/resize. Por eso NO podemos usar `status !== undefined`
       // como señal exclusiva de "edición de estado".
       const startDate = (item as { start_date?: Date | string }).start_date;
-      const duration = (item as { duration?: number }).duration ?? 1;
+      const duration = Math.max(1, Math.round((item as { duration?: number }).duration ?? 1));
       const start = startDate ? (startDate instanceof Date ? startDate : new Date(startDate)) : null;
       const end = start && !Number.isNaN(start.getTime())
-        ? (() => { const e = new Date(start.getTime()); e.setDate(e.getDate() + Math.max(0, duration - 1)); return e; })()
+        ? (() => {
+          const exclusive = gantt.calculateEndDate({ start_date: start, duration, unit: 'day' });
+          const inclusive = new Date(exclusive.getTime());
+          inclusive.setDate(inclusive.getDate() - 1);
+          return inclusive;
+        })()
         : null;
       const startStr = start ? formatLocalYmd(start) : null;
       const endStr = end ? formatLocalYmd(end) : null;
