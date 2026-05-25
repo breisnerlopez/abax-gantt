@@ -315,7 +315,7 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
     if (typeFilter) nodes = nodes.filter((n) => n.type === typeFilter);
     if (showUnscheduled) nodes = nodes.filter((n) => n.is_unscheduled);
     return nodes;
-  }, [portfolio.data?.nodes, portfolio.data?.users, searchTerm, typeFilter, showUnscheduled, myTasks, focusProjectId, currentUserId]);
+  }, [portfolio.data?.nodes, searchTerm, typeFilter, showUnscheduled, myTasks, focusProjectId, currentUserId]);
 
   const filteredBacklog = useMemo(() => {
     let backlog = portfolio.data?.backlog ?? [];
@@ -329,7 +329,21 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
     }
     if (typeFilter) backlog = backlog.filter((n) => n.type === typeFilter);
     return backlog;
-  }, [portfolio.data?.backlog, portfolio.data?.users, searchTerm, typeFilter, myTasks, focusProjectId, currentUserId]);
+  }, [portfolio.data?.backlog, searchTerm, typeFilter, myTasks, focusProjectId, currentUserId]);
+
+  const ganttNodes = useMemo(() => {
+    if (!showBacklogInGantt) return filteredNodes;
+    const today = new Date().toISOString().slice(0, 10);
+    const backlogAsGantt = filteredBacklog.map((n) => ({
+      ...n,
+      is_unscheduled: false as boolean,
+      start_date: n.start_date ?? today,
+      end_date: n.end_date ?? today,
+      color: n.color ?? '#b0b5c1',
+      _from_backlog: true as boolean,
+    }));
+    return [...filteredNodes, ...backlogAsGantt];
+  }, [filteredNodes, filteredBacklog, showBacklogInGantt]);
 
   const syncUrl = useCallback((params: Record<string, string>) => {
     const next = new URLSearchParams(searchParams);
@@ -457,20 +471,6 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
       throw error;
     }
   };
-
-  const ganttNodes = useMemo(() => {
-    if (!showBacklogInGantt) return filteredNodes;
-    const today = new Date().toISOString().slice(0, 10);
-    const backlogAsGantt = filteredBacklog.map((n) => ({
-      ...n,
-      is_unscheduled: false as boolean,
-      start_date: n.start_date ?? today,
-      end_date: n.end_date ?? today,
-      color: n.color ?? '#b0b5c1',
-      _from_backlog: true as boolean,
-    }));
-    return [...filteredNodes, ...backlogAsGantt];
-  }, [filteredNodes, filteredBacklog, showBacklogInGantt]);
 
   return (
     <AppShell summary={portfolio.data?.summary ?? null} userName={userName} onLogout={onLogout} onSearch={handleSearch} onOpenAdmin={() => navigate('/admin')} breadcrumb={focusProjectName ? `Proyecto · ${focusProjectName}` : (myTasks ? 'Mis tareas' : 'Vista consolidada')} detailVisible={detailVisible} onToggleDetail={toggleDetail} fullscreen={isFullscreen}>

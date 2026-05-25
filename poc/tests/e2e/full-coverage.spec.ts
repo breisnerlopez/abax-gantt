@@ -72,10 +72,6 @@ function jsonOk(route: Route, data: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ data, count: Array.isArray(data) ? data.length : undefined }) });
 }
 
-function jsonErr(route: Route, status: number, msg: string) {
-  return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ error: msg }) });
-}
-
 async function setupApi(page: Page, s: MockState) {
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url());
