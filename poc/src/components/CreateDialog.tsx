@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { NodeType, WbsNode } from '../lib/types';
 import { normalizeNodeDates, validateNodeInput } from '../lib/validation';
 
@@ -28,6 +28,8 @@ export function CreateDialog({ mode, parent, onClose, onCreateProject, onCreateC
   const [endDate, setEndDate] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Guard contra double-submit (doble click/Enter antes de que React aplique `disabled`).
+  const submitLockRef = useRef(false);
 
   if (!mode || !canEditStructure) return null;
 
@@ -35,6 +37,7 @@ export function CreateDialog({ mode, parent, onClose, onCreateProject, onCreateC
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (submitLockRef.current) return;
     const cleanName = name.trim();
     const dates = normalizeNodeDates(type, scheduled ? startDate || null : null, scheduled ? endDate || null : null);
     const validation = validateNodeInput({ name: cleanName, type, start_date: dates.start_date, end_date: dates.end_date });
@@ -43,6 +46,7 @@ export function CreateDialog({ mode, parent, onClose, onCreateProject, onCreateC
       return;
     }
 
+    submitLockRef.current = true;
     setSaving(true);
     setError(null);
     try {
@@ -61,6 +65,7 @@ export function CreateDialog({ mode, parent, onClose, onCreateProject, onCreateC
       setError(err instanceof Error ? err.message : 'No se pudo crear.');
     } finally {
       setSaving(false);
+      submitLockRef.current = false;
     }
   };
 
