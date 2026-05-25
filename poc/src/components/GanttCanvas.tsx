@@ -264,9 +264,11 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       const start = startDate instanceof Date ? startDate : new Date(startDate);
       if (Number.isNaN(start.getTime())) return;
       const end = new Date(start.getTime());
-      end.setUTCDate(end.getUTCDate() + Math.max(0, duration - 1));
-      const startStr = start.toISOString().slice(0, 10);
-      const endStr = end.toISOString().slice(0, 10);
+      end.setDate(end.getDate() + Math.max(0, duration - 1));
+      // Persistimos en YYYY-MM-DD usando calendario local, no UTC.
+      // Usar toISOString() desplaza el día en TZ != UTC.
+      const startStr = formatLocalYmd(start);
+      const endStr = formatLocalYmd(end);
       if (startStr === (node.start_date ?? '').slice(0, 10) && endStr === (node.end_date ?? '').slice(0, 10)) return;
       void callbacksRef.current.onUpdateDates?.(taskId, { start_date: startStr, end_date: endStr }).catch(() => {
         gantt.parse(toGanttData(nodesRef.current, dependenciesRef.current));
@@ -288,10 +290,10 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       const duration = (item as { duration?: number }).duration ?? 1;
       const start = startDate ? (startDate instanceof Date ? startDate : new Date(startDate)) : null;
       const end = start && !Number.isNaN(start.getTime())
-        ? (() => { const e = new Date(start.getTime()); e.setUTCDate(e.getUTCDate() + Math.max(0, duration - 1)); return e; })()
+        ? (() => { const e = new Date(start.getTime()); e.setDate(e.getDate() + Math.max(0, duration - 1)); return e; })()
         : null;
-      const startStr = start ? start.toISOString().slice(0, 10) : null;
-      const endStr = end ? end.toISOString().slice(0, 10) : null;
+      const startStr = start ? formatLocalYmd(start) : null;
+      const endStr = end ? formatLocalYmd(end) : null;
       const datesChanged = !!(startStr && endStr) && (
         startStr !== (node.start_date ?? '').slice(0, 10) ||
         endStr !== (node.end_date ?? '').slice(0, 10)
@@ -472,6 +474,13 @@ function initials(name: string) {
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] ?? c));
+}
+
+function formatLocalYmd(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 // V-15: construye la ruta legible de ancestros para un nodo dado.
