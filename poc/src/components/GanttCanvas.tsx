@@ -86,6 +86,10 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
 
     gantt.config.date_format = '%Y-%m-%d';
     gantt.config.duration_unit = 'day';
+    // Snap de drag/resize a días completos.
+    // Sin esto, DHTMLX permite mover a fracciones de día (dependiendo del zoom y del timezone).
+    gantt.config.round_dnd_dates = true;
+    gantt.config.time_step = 1440;
     gantt.config.row_height = 32;
     gantt.config.scale_height = 56;
     gantt.config.min_column_width = 42;
