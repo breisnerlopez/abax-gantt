@@ -16,6 +16,17 @@ import { addAssignee, apiUrl, createDependency, createProject, createWbsNode, de
 import type { AuthSession, DependencyType, NodeType, TaskAssignee, WbsNode } from '../lib/types';
 
 const FILTERS_KEY = 'abax.filters';
+const SCALE_KEY = 'abax.gantt.scale';
+
+function readScale(searchParams: URLSearchParams): 'Día' | 'Semana' | 'Mes' | 'Año' {
+  const raw = searchParams.get('scale');
+  if (raw === 'Día' || raw === 'Semana' || raw === 'Mes' || raw === 'Año') return raw;
+  try {
+    const saved = window.localStorage.getItem(SCALE_KEY);
+    if (saved === 'Día' || saved === 'Semana' || saved === 'Mes' || saved === 'Año') return saved;
+  } catch { /* ignore */ }
+  return 'Semana';
+}
 
 function readFilter(key: string): string {
   try {
@@ -71,8 +82,12 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
   const [dateTo, setDateTo] = useState(() => searchParams.get('date_to') ?? readFilter('date_to'));
   const [activeOnly, setActiveOnly] = useState(() => searchParams.get('active_only') !== 'false');
   const [todaySignal, setTodaySignal] = useState(0);
-  const [ganttScale, setGanttScale] = useState<'Día' | 'Semana' | 'Mes' | 'Año'>('Semana');
+  const [ganttScale, setGanttScale] = useState<'Día' | 'Semana' | 'Mes' | 'Año'>(() => readScale(searchParams));
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    try { window.localStorage.setItem(SCALE_KEY, ganttScale); } catch { /* ignore */ }
+  }, [ganttScale]);
 
   useEffect(() => {
     saveFilters({ q: searchTerm, type: typeFilter ?? '', unscheduled: showUnscheduled ? '1' : '', my: myTasks ? '1' : '', focus: focusProjectId ?? '', project_id: projectFilter ?? '', responsible_id: responsibleFilter ?? '', assignee_id: assigneeFilter ?? '', status: statusFilter ?? '', date_from: dateFrom, date_to: dateTo, active_only: activeOnly ? '1' : '', backlog_gantt: showBacklogInGantt ? '1' : '' });
@@ -586,7 +601,10 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
         focusProjectName={focusProjectName}
         onToday={() => setTodaySignal((t) => t + 1)}
         scale={ganttScale}
-        onScaleChange={setGanttScale}
+        onScaleChange={(next) => {
+          setGanttScale(next);
+          syncUrl({ scale: next });
+        }}
         isFullscreen={isFullscreen}
         onToggleFullscreen={() => setIsFullscreen((v) => !v)}
       />

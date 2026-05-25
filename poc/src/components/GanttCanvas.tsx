@@ -96,6 +96,8 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     gantt.config.drag_links = canEditStructure;
     gantt.config.show_links = true;
     gantt.config.drag_project = canEditStructure;
+    gantt.config.drag_resize = canEditStructure;
+    gantt.config.drag_move = canEditStructure;
     gantt.config.readonly = !canEditStructure;
     gantt.config.details_on_dblclick = false;
     gantt.config.smart_rendering = true;
@@ -247,6 +249,26 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     // Persistimos start_date + end_date al backend via scheduleWbsNode. Sin esto, los cambios
     // se pierden en el siguiente refresh del portfolio.
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    const persistDatesFromItem = (taskId: string, item: unknown) => {
+      const node = nodesRef.current.find((n) => n.id === taskId);
+      if (!node || node.type === 'project') return;
+
+      const startDate = (item as { start_date?: Date | string }).start_date;
+      const duration = (item as { duration?: number }).duration ?? 1;
+      if (!startDate) return;
+      const start = startDate instanceof Date ? startDate : new Date(startDate);
+      if (Number.isNaN(start.getTime())) return;
+      const end = new Date(start.getTime());
+      end.setUTCDate(end.getUTCDate() + Math.max(0, duration - 1));
+      const startStr = start.toISOString().slice(0, 10);
+      const endStr = end.toISOString().slice(0, 10);
+      if (startStr === (node.start_date ?? '').slice(0, 10) && endStr === (node.end_date ?? '').slice(0, 10)) return;
+      void callbacksRef.current.onUpdateDates?.(taskId, { start_date: startStr, end_date: endStr }).catch(() => {
+        gantt.parse(toGanttData(nodesRef.current, dependenciesRef.current));
+      });
+    };
+
     const updateEvent = gantt.attachEvent('onAfterTaskUpdate', (id, item) => {
       if (isParsingRef.current) return true;
       const taskId = String(id);
@@ -268,22 +290,18 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
         gantt.closeEditor();
         return true;
       }
-      const startDate = (item as { start_date?: Date | string }).start_date;
-      const duration = (item as { duration?: number }).duration ?? 1;
-      if (!startDate) return true;
-      const start = startDate instanceof Date ? startDate : new Date(startDate);
-      if (Number.isNaN(start.getTime())) return true;
-      const end = new Date(start.getTime());
-      end.setUTCDate(end.getUTCDate() + Math.max(0, duration - 1));
-      const startStr = start.toISOString().slice(0, 10);
-      const endStr = end.toISOString().slice(0, 10);
-      if (startStr === (node.start_date ?? '').slice(0, 10) && endStr === (node.end_date ?? '').slice(0, 10)) {
-        return true; // sin cambios reales
-      }
-      void callbacksRef.current.onUpdateDates?.(taskId, { start_date: startStr, end_date: endStr }).catch(() => {
-        // Si falla, recargar el dato original para evitar UI mentirosa.
-        gantt.parse(toGanttData(nodesRef.current, dependenciesRef.current));
-      });
+      persistDatesFromItem(taskId, item);
+      return true;
+    });
+
+    // Hay casos (segun config/plugins) donde el resize/move no dispara onAfterTaskUpdate.
+    // Escuchamos también onAfterTaskDrag para asegurar persistencia.
+    const dragEvent = gantt.attachEvent('onAfterTaskDrag', (id, mode, item) => {
+      if (isParsingRef.current) return true;
+      if (mode !== 'move' && mode !== 'resize') return true;
+      const taskId = String(id);
+      if (!UUID_RE.test(taskId)) return true;
+      persistDatesFromItem(taskId, item);
       return true;
     });
 
@@ -322,6 +340,7 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       gantt.detachEvent(linkAddEvent);
       gantt.detachEvent(linkDeleteEvent);
       gantt.detachEvent(updateEvent);
+      gantt.detachEvent(dragEvent);
       gantt.detachEvent(moveEvent);
       gantt.detachEvent(collapsedOpen);
       gantt.detachEvent(collapsedClosed);
