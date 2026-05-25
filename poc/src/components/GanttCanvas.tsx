@@ -276,6 +276,28 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       const node = nodesRef.current.find((n) => n.id === taskId);
       if (!node || node.type === 'project') return true;
 
+      // Si hay cambios de fechas, priorizar persistir fechas.
+      // Nota: `status` suele existir siempre (lo seteamos en la data), incluso cuando
+      // el update viene de drag/resize. Por eso NO podemos usar `status !== undefined`
+      // como señal exclusiva de "edición de estado".
+      const startDate = (item as { start_date?: Date | string }).start_date;
+      const duration = (item as { duration?: number }).duration ?? 1;
+      const start = startDate ? (startDate instanceof Date ? startDate : new Date(startDate)) : null;
+      const end = start && !Number.isNaN(start.getTime())
+        ? (() => { const e = new Date(start.getTime()); e.setUTCDate(e.getUTCDate() + Math.max(0, duration - 1)); return e; })()
+        : null;
+      const startStr = start ? start.toISOString().slice(0, 10) : null;
+      const endStr = end ? end.toISOString().slice(0, 10) : null;
+      const datesChanged = !!(startStr && endStr) && (
+        startStr !== (node.start_date ?? '').slice(0, 10) ||
+        endStr !== (node.end_date ?? '').slice(0, 10)
+      );
+      if (datesChanged) {
+        persistDatesFromItem(taskId, item);
+        return true;
+      }
+
+      // Si no hay cambio de fechas, entonces sí tratamos el cambio de estado.
       const newStatus = (item as { status?: string }).status;
       if (newStatus !== undefined) {
         const resolved = newStatus === '__auto__' ? null : newStatus;
@@ -290,7 +312,7 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
         gantt.closeEditor();
         return true;
       }
-      persistDatesFromItem(taskId, item);
+
       return true;
     });
 
