@@ -334,14 +334,27 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
   const ganttNodes = useMemo(() => {
     if (!showBacklogInGantt) return filteredNodes;
     const today = new Date().toISOString().slice(0, 10);
-    const backlogAsGantt = filteredBacklog.map((n) => ({
-      ...n,
-      is_unscheduled: false as boolean,
-      start_date: n.start_date ?? today,
-      end_date: n.end_date ?? today,
-      color: n.color ?? '#b0b5c1',
-      _from_backlog: true as boolean,
-    }));
+    const byId = new Map<string, WbsNode>();
+    // Usamos también los nodos del backlog para poder resolver padres que aún estén sin fechas.
+    filteredNodes.forEach((n) => byId.set(n.id, n));
+    filteredBacklog.forEach((n) => byId.set(n.id, n));
+
+    // Si dibujamos backlog siempre en "hoy", puede quedar fuera del rango visible del
+    // proyecto (por ejemplo si todo el proyecto está en 2027). Para hacerlo descubrible,
+    // anclamos los ítems de backlog al rango del padre cuando exista.
+    const backlogAsGantt = filteredBacklog.map((n) => {
+      const parent = n.parent_id ? byId.get(n.parent_id) ?? null : null;
+      const anchor = parent?.start_date ?? parent?.end_date ?? null;
+      const placeholder = n.start_date ?? anchor ?? today;
+      return {
+        ...n,
+        is_unscheduled: false as boolean,
+        start_date: placeholder,
+        end_date: n.end_date ?? placeholder,
+        color: n.color ?? '#b0b5c1',
+        _from_backlog: true as boolean,
+      };
+    });
     return [...filteredNodes, ...backlogAsGantt];
   }, [filteredNodes, filteredBacklog, showBacklogInGantt]);
 
@@ -465,6 +478,17 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
       });
       const data = await portfolio.refetch();
       onSelectNode(data?.nodes.find((node) => node.id === created.id) ?? created);
+
+      // Si el usuario crea un hijo sin fechas, el backend lo envía al backlog.
+      // Para evitar confusión ("no aparece en el Gantt"), abrimos el backlog y
+      // forzamos la visualización de backlog en el Gantt si estaba apagada.
+      if (created.is_unscheduled) {
+        setBacklogOpen(true);
+        if (!showBacklogInGantt) {
+          setShowBacklogInGantt(true);
+          syncUrl({ backlog_gantt: '' });
+        }
+      }
       notify({ tone: 'success', title: 'Nodo creado' });
     } catch (error) {
       notify({ tone: 'error', title: 'No se pudo crear nodo', detail: errorMessage(error) });
