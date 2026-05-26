@@ -24,7 +24,11 @@ test('keeps single-day tasks at duration=1', async ({ page }) => {
   await page.waitForSelector('.gantt_container', { timeout: 10000 });
 
   const duration = await page.evaluate(() => {
-    const g = (window as unknown as { gantt?: any; dhtmlx?: any }).gantt ?? (window as unknown as { dhtmlx?: any }).dhtmlx?.gantt;
+    type GanttTask = { duration?: number };
+    type GanttApi = { getTask: (id: string) => GanttTask };
+    type Win = { gantt?: GanttApi; dhtmlx?: { gantt?: GanttApi } };
+    const w = window as unknown as Win;
+    const g = w.gantt ?? w.dhtmlx?.gantt;
     if (!g?.getTask) return null;
     const task = g.getTask('n-task1');
     return task?.duration ?? null;
