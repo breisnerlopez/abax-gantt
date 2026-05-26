@@ -279,11 +279,10 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       const start = coerceDate(startDate);
       if (!start) return;
 
-      // DHTMLX Gantt usa internamente end_date como límite exclusivo.
-      // Nuestra API/DB usa end_date inclusivo (YYYY-MM-DD). Convertimos aquí.
-      const endExclusive = gantt.calculateEndDate({ start_date: start, duration, unit: 'day' });
-      const end = new Date(endExclusive.getTime());
-      end.setDate(end.getDate() - 1);
+      // Persistimos calendario por día (inclusive). Evitamos `gantt.calculateEndDate` aquí:
+      // puede tirar "Invalid start_date argument" si start_date viene en formato inesperado.
+      const end = new Date(start.getTime());
+      end.setDate(end.getDate() + duration - 1);
       // Persistimos en YYYY-MM-DD usando calendario local, no UTC.
       // Usar toISOString() desplaza el día en TZ != UTC.
       const startStr = formatLocalYmd(start);
@@ -310,9 +309,8 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       const start = startDate ? coerceDate(startDate) : null;
       const end = start && !Number.isNaN(start.getTime())
         ? (() => {
-          const exclusive = gantt.calculateEndDate({ start_date: start, duration, unit: 'day' });
-          const inclusive = new Date(exclusive.getTime());
-          inclusive.setDate(inclusive.getDate() - 1);
+          const inclusive = new Date(start.getTime());
+          inclusive.setDate(inclusive.getDate() + duration - 1);
           return inclusive;
         })()
         : null;
