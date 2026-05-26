@@ -27,8 +27,12 @@ const DEP_TYPE: Record<string, string> = { FS: '0', SS: '1', FF: '2', SF: '3' };
 function durationInDays(start: string | null, end: string | null, fallback: number | null): number {
   if (fallback && fallback > 0) return fallback;
   if (!start || !end) return 1;
-  const startTime = new Date(start).getTime();
-  const endTime = new Date(end).getTime();
+  // Evitar `new Date('YYYY-MM-DD')` (UTC) que puede correrse según TZ/DST.
+  // Persistimos fechas como YYYY-MM-DD (calendario local), así que calculamos en local.
+  const [sy, sm, sd] = start.split('-').map((v) => Number(v));
+  const [ey, em, ed] = end.split('-').map((v) => Number(v));
+  const startTime = new Date(sy, (sm ?? 1) - 1, sd ?? 1).getTime();
+  const endTime = new Date(ey, (em ?? 1) - 1, ed ?? 1).getTime();
   if (Number.isNaN(startTime) || Number.isNaN(endTime)) return 1;
   return Math.max(1, Math.round((endTime - startTime) / 86400000) + 1);
 }
