@@ -3,7 +3,7 @@ import type { Dependency, WbsNode } from './types';
 export interface GanttTask {
   id: string;
   text: string;
-  start_date: string;
+  start_date: string | Date;
   duration: number;
   progress: number;
   parent: string | 0;
@@ -37,6 +37,19 @@ function durationInDays(start: string | null, end: string | null, fallback: numb
   return Math.max(1, Math.round((endTime - startTime) / 86400000) + 1);
 }
 
+function parseLocalYmd(ymd: string): Date {
+  const [y, m, d] = ymd.split('-').map((v) => Number(v));
+  return new Date(y, (m ?? 1) - 1, d ?? 1);
+}
+
+function todayLocalYmd(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function computeNodeStatus(node: WbsNode): string {
   if (node.status) return node.status;
   const today = new Date().toISOString().slice(0, 10);
@@ -53,7 +66,9 @@ export function toGanttData(nodes: WbsNode[], dependencies: Dependency[], collap
   const data: GanttTask[] = scheduledNodes.map((node) => ({
     id: node.id,
     text: node.name,
-    start_date: node.start_date ?? new Date().toISOString().slice(0, 10),
+    // Evita parseo UTC de 'YYYY-MM-DD' en algunos paths (puede mover la barra al día anterior).
+    // Damos Date en horario local para que DHTMLX pinte en el día correcto.
+    start_date: parseLocalYmd(node.start_date ?? todayLocalYmd()),
     duration: node.type === 'milestone' ? 0 : durationInDays(node.start_date, node.end_date, node.duration_days),
     progress: Math.max(0, Math.min(1, node.progress ?? 0)),
     parent: node.parent_id && existingIds.has(node.parent_id) ? node.parent_id : 0,

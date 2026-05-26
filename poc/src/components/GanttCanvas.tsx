@@ -124,7 +124,9 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
         resize: true,
         template: (task: { start_date?: Date | string | null }) => {
           if (!task.start_date) return '';
-          const d = task.start_date instanceof Date ? task.start_date : new Date(task.start_date);
+          const d = task.start_date instanceof Date
+            ? task.start_date
+            : parseLocalYmdMaybe(task.start_date);
           if (Number.isNaN(d.getTime())) return '';
           const dd = String(d.getDate()).padStart(2, '0');
           const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -490,6 +492,16 @@ function formatLocalYmd(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+}
+
+function parseLocalYmdMaybe(value: string): Date {
+  // Si viene como YYYY-MM-DD, lo interpretamos como calendario local.
+  // `new Date('YYYY-MM-DD')` se interpreta como UTC y puede mostrar el día anterior.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [y, m, d] = value.split('-').map((v) => Number(v));
+    return new Date(y, (m ?? 1) - 1, d ?? 1);
+  }
+  return new Date(value);
 }
 
 // V-15: construye la ruta legible de ancestros para un nodo dado.
