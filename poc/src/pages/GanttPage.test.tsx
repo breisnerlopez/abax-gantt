@@ -109,7 +109,7 @@ describe('GanttPage mocked flows', () => {
     const user = userEvent.setup();
     const scheduled = { ...backlogNode, is_unscheduled: false, start_date: '2026-05-20', end_date: '2026-05-22' };
     mocks.loadPortfolio.mockResolvedValue(basePortfolio);
-    mocks.scheduleWbsNode.mockResolvedValue(scheduled);
+    mocks.scheduleWbsNode.mockResolvedValue({ node: scheduled, ancestors: [] });
 
     renderPage(responsableSession, projectNode);
 
@@ -152,7 +152,7 @@ describe('GanttPage mocked flows', () => {
     const user = userEvent.setup();
     const movedNode = { ...taskNode, sort_order: 2 };
     mocks.loadPortfolio.mockResolvedValue(basePortfolio);
-    mocks.moveWbsNode.mockResolvedValue(movedNode);
+    mocks.moveWbsNode.mockResolvedValue({ node: movedNode, ancestors: [] });
 
     renderPage(responsableSession, taskNode);
 

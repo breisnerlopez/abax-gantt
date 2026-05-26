@@ -99,7 +99,9 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     gantt.config.show_quick_info = true;
     gantt.config.drag_links = canEditStructure;
     gantt.config.show_links = true;
-    gantt.config.drag_project = canEditStructure;
+    // Las fechas de los contenedores (project/stage/group) son derivadas por el backend
+    // (rollup MIN/MAX de hijos). No permitir drag horizontal del summary bar.
+    gantt.config.drag_project = false;
     gantt.config.drag_resize = canEditStructure;
     gantt.config.drag_move = canEditStructure;
     gantt.config.readonly = !canEditStructure;
@@ -224,6 +226,17 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     const selectEvent = gantt.attachEvent('onTaskSelected', (id) => {
       const selected = nodesRef.current.find((node) => node.id === String(id)) ?? null;
       callbacksRef.current.onSelectNode(selected);
+      return true;
+    });
+
+    // Las fechas de project/stage/group son derivadas (MIN/MAX de hijos) en el backend.
+    // Bloqueamos cualquier intento de moverlas/resizearlas desde el timeline.
+    const beforeDragEvent = gantt.attachEvent('onBeforeTaskDrag', (id, mode) => {
+      if (mode !== 'move' && mode !== 'resize') return true;
+      const task = gantt.getTask(id) as { type?: string };
+      if (task?.type === 'project' || task?.type === 'stage' || task?.type === 'group') {
+        return false;
+      }
       return true;
     });
     const linkAddEvent = gantt.attachEvent('onAfterLinkAdd', (id, link) => {
@@ -387,6 +400,7 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
 
     return () => {
       gantt.detachEvent(selectEvent);
+      gantt.detachEvent(beforeDragEvent);
       gantt.detachEvent(linkAddEvent);
       gantt.detachEvent(linkDeleteEvent);
       gantt.detachEvent(updateEvent);
@@ -413,14 +427,60 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
 
   // Cambiar zoom sin reinicializar todo el Gantt: solo ajustar nivel y re-renderizar.
 
+  // Snapshot de la última estructura cargada al Gantt, para decidir si podemos
+  // hacer un update incremental (rápido, sólo refrescar tareas existentes) o si
+  // hace falta el clearAll+parse completo (cuando cambia la topología).
+  const lastTopologyRef = useRef<{ ids: Set<string>; parents: Map<string, string | 0>; linkIds: Set<string> } | null>(null);
+
   useEffect(() => {
     if (!containerRef.current) return;
     const collapsed = loadCollapsed();
     const ganttData = toGanttData(nodes, dependencies, collapsed);
+
+    const newIds = new Set(ganttData.data.map((t) => t.id));
+    const newParents = new Map(ganttData.data.map((t) => [t.id, t.parent]));
+    const newLinkIds = new Set(ganttData.links.map((l) => l.id));
+
+    const sameSet = (a: Set<string>, b: Set<string>): boolean => {
+      if (a.size !== b.size) return false;
+      for (const v of a) if (!b.has(v)) return false;
+      return true;
+    };
+    const sameParents = (a: Map<string, string | 0>, b: Map<string, string | 0>): boolean => {
+      if (a.size !== b.size) return false;
+      for (const [k, v] of a) if (b.get(k) !== v) return false;
+      return true;
+    };
+
+    const canIncremental = !!lastTopologyRef.current
+      && sameSet(lastTopologyRef.current.ids, newIds)
+      && sameParents(lastTopologyRef.current.parents, newParents)
+      && sameSet(lastTopologyRef.current.linkIds, newLinkIds);
+
     isParsingRef.current = true;
-    gantt.clearAll();
-    gantt.parse(ganttData);
-    // Resetear el flag tras el ciclo de eventos para evitar carrera.
+    if (canIncremental) {
+      // Update incremental: solo refrescamos campos visibles de tareas existentes.
+      // Mucho mas barato que clearAll+parse cuando solo cambiaron fechas / status / progress.
+      for (const task of ganttData.data) {
+        if (!gantt.isTaskExists(task.id)) continue;
+        const existing = gantt.getTask(task.id) as Record<string, unknown>;
+        existing.start_date = task.start_date as unknown;
+        existing.duration = task.duration;
+        existing.progress = task.progress;
+        existing.text = task.text;
+        existing.color = task.color;
+        existing.status = task.status;
+        existing.node = task.node;
+        existing.isUnscheduled = task.isUnscheduled;
+        try { gantt.updateTask(task.id); } catch { /* ignore */ }
+      }
+      gantt.render();
+    } else {
+      gantt.clearAll();
+      gantt.parse(ganttData);
+    }
+
+    lastTopologyRef.current = { ids: newIds, parents: newParents, linkIds: newLinkIds };
     setTimeout(() => { isParsingRef.current = false; }, 0);
   }, [nodes, dependencies]);
 
@@ -506,11 +566,13 @@ function formatLocalYmd(date: Date): string {
 }
 
 function parseLocalYmdMaybe(value: string): Date {
-  // Si viene como YYYY-MM-DD, lo interpretamos como calendario local.
+  // Si viene como YYYY-MM-DD (o ISO con T), lo interpretamos en calendario local.
   // `new Date('YYYY-MM-DD')` se interpreta como UTC y puede mostrar el día anterior.
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [y, m, d] = value.split('-').map((v) => Number(v));
-    return new Date(y, (m ?? 1) - 1, d ?? 1);
+  // Tolera también timestamps tipo `2026-05-26T00:00:00Z` que llegaron desde el
+  // backend en algunos paths y disparaban Invalid Date al hacer split('-').
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (m) {
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
   }
   return new Date(value);
 }

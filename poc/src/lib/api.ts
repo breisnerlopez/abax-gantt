@@ -72,6 +72,28 @@ async function apiSend<T>(path: string, token: string, method: 'POST' | 'PATCH',
   return json.data;
 }
 
+// Variante de apiSend que devuelve el envelope completo. La usamos en endpoints
+// que devuelven info adicional (ej: ancestros recalculados).
+async function apiSendEnvelope<T>(path: string, token: string, method: 'POST' | 'PATCH', body: unknown): Promise<ApiEnvelope<T> & { ancestors?: WbsNode[] }> {
+  const res = await fetch(apiUrl(path), {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (res.status === 401) { handleUnauthorized(); throw new Error('Tu sesión expiró. Vuelve a entrar.'); }
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(parseApiError(text) || `Request failed: ${res.status}`);
+  }
+
+  return (await res.json()) as ApiEnvelope<T> & { ancestors?: WbsNode[] };
+}
+
 async function apiDelete(path: string, token: string): Promise<void> {
   const res = await fetch(apiUrl(path), {
     method: 'DELETE',
@@ -144,8 +166,9 @@ export async function updateWbsNode(token: string, id: string, patch: Partial<Pi
   return apiSend<WbsNode>(`api/wbs/${id}`, token, 'PATCH', patch);
 }
 
-export async function scheduleWbsNode(token: string, id: string, input: { start_date: string; end_date?: string | null }) {
-  return apiSend<WbsNode>(`api/wbs/schedule/${id}`, token, 'PATCH', input);
+export async function scheduleWbsNode(token: string, id: string, input: { start_date: string; end_date?: string | null }): Promise<{ node: WbsNode; ancestors: WbsNode[] }> {
+  const envelope = await apiSendEnvelope<WbsNode>(`api/wbs/schedule/${id}`, token, 'PATCH', input);
+  return { node: envelope.data, ancestors: envelope.ancestors ?? [] };
 }
 
 export async function unscheduleWbsNode(token: string, id: string) {
@@ -176,8 +199,9 @@ export async function deleteDependency(token: string, dependencyId: string) {
   return apiDelete(`api/dependencies/${dependencyId}`, token);
 }
 
-export async function moveWbsNode(token: string, id: string, input: { parent_id?: string | null; sort_order?: number }) {
-  return apiSend<WbsNode>(`api/wbs/move/${id}`, token, 'PATCH', input);
+export async function moveWbsNode(token: string, id: string, input: { parent_id?: string | null; sort_order?: number }): Promise<{ node: WbsNode; ancestors: WbsNode[] }> {
+  const envelope = await apiSendEnvelope<WbsNode>(`api/wbs/move/${id}`, token, 'PATCH', input);
+  return { node: envelope.data, ancestors: envelope.ancestors ?? [] };
 }
 
 export async function listAttachments(token: string, projectId: string) {

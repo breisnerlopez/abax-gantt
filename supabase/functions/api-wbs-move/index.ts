@@ -126,7 +126,25 @@ Deno.serve(async (req: Request) => {
       .single();
     if (freshError) throw new ApiError(500, freshError.message);
 
-    return okResponse({ data: freshNode });
+    // Ancestros recalculados por el trigger rollup (nuevo padre + cadena hasta la raiz)
+    // Y si hubo cambio de parent, tambien el viejo padre y su cadena.
+    let ancestors: Record<string, unknown>[] = [];
+    if (freshNode?.path) {
+      const { data: newAncestors } = await db
+        .rpc("get_ancestor_nodes", { node_path: freshNode.path, exclude_id: id });
+      if (Array.isArray(newAncestors)) ancestors = ancestors.concat(newAncestors);
+    }
+    if (newParentId !== null && newParentId !== node.parent_id && node.path) {
+      const { data: oldAncestors } = await db
+        .rpc("get_ancestor_nodes", { node_path: node.path, exclude_id: id });
+      if (Array.isArray(oldAncestors)) {
+        const seen = new Set(ancestors.map((a) => a.id as string));
+        for (const a of oldAncestors) {
+          if (!seen.has(a.id as string)) ancestors.push(a);
+        }
+      }
+    }
+    return okResponse({ data: freshNode, ancestors });
   } catch (error) {
     return handleError(error);
   }

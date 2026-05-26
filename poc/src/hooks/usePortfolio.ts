@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadPortfolio, type PortfolioFilters } from '../lib/api';
-import { addDependencyToPortfolio, removeDependencyFromPortfolio, updateNodeInPortfolio } from '../lib/portfolio-state';
+import { addDependencyToPortfolio, removeDependencyFromPortfolio, updateNodeInPortfolio, updateNodeWithRollup } from '../lib/portfolio-state';
 import type { Dependency, PortfolioData, WbsNode } from '../lib/types';
 
 type PortfolioState =
@@ -11,6 +11,8 @@ type PortfolioState =
 type PortfolioResult = PortfolioState & {
   refetch: () => Promise<PortfolioData | null>;
   updateNodeLocal: (node: WbsNode) => void;
+  /** Igual a updateNodeLocal pero recalcula MIN/MAX en ancestros (mirror del trigger SQL). */
+  updateNodeLocalWithRollup: (node: WbsNode, previousParentId?: string | null) => void;
   addDependencyLocal: (dependency: Dependency) => void;
   removeDependencyLocal: (dependencyId: string) => void;
 };
@@ -44,6 +46,14 @@ export function usePortfolio(token: string | null, filters?: PortfolioFilters): 
     setState((current) => {
       if (current.status !== 'ready') return current;
       return { ...current, data: updateNodeInPortfolio(current.data, node) };
+    });
+  }, []);
+
+  const updateNodeLocalWithRollup = useCallback((node: WbsNode, previousParentId?: string | null) => {
+    lastMutationRef.current = Date.now();
+    setState((current) => {
+      if (current.status !== 'ready') return current;
+      return { ...current, data: updateNodeWithRollup(current.data, node, previousParentId) };
     });
   }, []);
 
@@ -101,7 +111,7 @@ export function usePortfolio(token: string | null, filters?: PortfolioFilters): 
     };
   }, [token, filters]);
 
-  const actions = { refetch, updateNodeLocal, addDependencyLocal, removeDependencyLocal };
+  const actions = { refetch, updateNodeLocal, updateNodeLocalWithRollup, addDependencyLocal, removeDependencyLocal };
   if (token && state.status === 'idle') return { status: 'loading' as const, data: null, error: null, ...actions };
   if (!token && state.status !== 'idle') return { status: 'idle' as const, data: null, error: null, ...actions };
   return { ...state, ...actions };

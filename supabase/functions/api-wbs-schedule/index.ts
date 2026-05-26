@@ -87,7 +87,16 @@ Deno.serve(async (req: Request) => {
 
     const { data, error } = await db.from("wbs_nodes").update(patch).eq("id", id).select().single();
     if (error) throw new ApiError(400, error.message);
-    return okResponse({ data });
+
+    // Devolvemos los ancestros recalculados por el trigger rollup en la misma
+    // response para que el cliente actualice los padres sin hacer refetch full.
+    let ancestors: unknown[] = [];
+    if (data?.path) {
+      const { data: ancestorRows } = await db
+        .rpc("get_ancestor_nodes", { node_path: data.path, exclude_id: id });
+      if (Array.isArray(ancestorRows)) ancestors = ancestorRows;
+    }
+    return okResponse({ data, ancestors });
   } catch (error) {
     return handleError(error);
   }

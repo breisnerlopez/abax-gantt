@@ -183,7 +183,7 @@ Todos validan JWT vía Authentik JWKS. Autorización programática con funciones
 
 ## Base de datos
 
-7 migraciones SQL:
+10 migraciones SQL:
 - `00001_schema.sql`: modelo completo con ltree, constraints, índices
 - `00002_functions_rls.sql`: permisos heredados, políticas RLS, función `can_manage_node`
 - `00003_dependency_guards.sql`: integridad de dependencias (mismo proyecto, sin ciclos)
@@ -191,6 +191,9 @@ Todos validan JWT vía Authentik JWKS. Autorización programática con funciones
 - `00005_storage_bucket.sql`: bucket `attachments` con límite 5 MB y MIME types
 - `00006_authentik_profiles.sql`: desacople de `auth.users`, columna `authentik_sub`
 - `00007_set_user_context.sql`: RPC para contexto de usuario en operaciones
+- `00008_wbs_status.sql`: columna `status` en `wbs_nodes` con valores manuales (pendiente/en_progreso/...) o auto
+- `00009_rollup_parent_dates.sql`: trigger que recalcula `start_date = MIN(hijos)` y `end_date = MAX(hijos)` en `project | stage | group` ante cualquier INSERT/UPDATE/DELETE de hijos. Anti-recursión vía `pg_trigger_depth()`. Padres con todos los hijos en backlog quedan `is_unscheduled=true`. Backfill al final aplica la regla a la data ya cargada.
+- `00010_get_ancestor_nodes.sql`: RPC helper que devuelve los ancestros de un nodo en una sola query (usada por `api-wbs-schedule` y `api-wbs-move` para mandar ancestros recalculados al cliente sin necesidad de refetch).
 
 Seed demo en `supabase/seed.sql`: 3 usuarios, 1 proyecto, 6 nodos WBS, 1 dependencia, 1 ejecutor asignado.
 

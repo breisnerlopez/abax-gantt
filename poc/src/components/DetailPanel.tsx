@@ -217,9 +217,25 @@ function InfoTab({ node, form, update, onUnschedule, canEditStructure }: { node:
         </small>
       </label>
       <div className="field-grid">
-        <label className="edit-field"><span>Inicio</span><input type="date" value={form.start_date} disabled={!canEditStructure} onChange={(event) => update('start_date', event.target.value)} /></label>
-        <label className="edit-field"><span>Fin</span><input type="date" value={form.end_date} disabled={!canEditStructure} onChange={(event) => update('end_date', event.target.value)} /></label>
-        <label className="edit-field"><span>Horas estimadas</span><input type="number" min="0" value={form.estimated_hours} disabled={!canEditStructure} onChange={(event) => update('estimated_hours', event.target.value)} /></label>
+        {(() => {
+          const isContainer = node.type === 'project' || node.type === 'stage' || node.type === 'group';
+          const datesDisabled = !canEditStructure || isContainer;
+          return (
+            <>
+              <label className="edit-field">
+                <span>Inicio</span>
+                <input type="date" value={form.start_date} disabled={datesDisabled} onChange={(event) => update('start_date', event.target.value)} />
+                {isContainer && <small style={{ color: 'var(--text-tertiary)', fontSize: 11, marginTop: 4, display: 'block' }}>Calculado desde la fecha más temprana de los hijos.</small>}
+              </label>
+              <label className="edit-field">
+                <span>Fin</span>
+                <input type="date" value={form.end_date} disabled={datesDisabled} onChange={(event) => update('end_date', event.target.value)} />
+                {isContainer && <small style={{ color: 'var(--text-tertiary)', fontSize: 11, marginTop: 4, display: 'block' }}>Calculado desde la fecha más tardía de los hijos.</small>}
+              </label>
+              <label className="edit-field"><span>Horas estimadas</span><input type="number" min="0" value={form.estimated_hours} disabled={!canEditStructure} onChange={(event) => update('estimated_hours', event.target.value)} /></label>
+            </>
+          );
+        })()}
       </div>
     </section>
   );

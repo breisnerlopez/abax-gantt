@@ -161,9 +161,10 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
   const handleScheduleNode = useCallback(async (node: WbsNode, dates: { start_date: string; end_date: string | null }) => {
     if (!token) return;
     try {
-      const updated = await scheduleWbsNode(token, node.id, dates);
-      const data = await portfolio.refetch();
-      onSelectNode(data?.nodes.find((item) => item.id === updated.id) ?? updated);
+      const { node: updated, ancestors } = await scheduleWbsNode(token, node.id, dates);
+      portfolio.updateNodeLocalWithRollup(updated);
+      for (const a of ancestors) portfolio.updateNodeLocal(a);
+      onSelectNode(updated);
       notify({ tone: 'success', title: 'Tarea programada' });
     } catch (error) {
       notify({ tone: 'error', title: 'No se pudo programar', detail: errorMessage(error) });
@@ -269,9 +270,14 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
 
   const handleMoveNode = useCallback(async (nodeId: string, input: { parent_id?: string | null; sort_order?: number }) => {
     if (!token) return false;
+    const previousParentId = portfolio.data?.nodes.find((n) => n.id === nodeId)?.parent_id ?? null;
     try {
-      const updated = await moveWbsNode(token, nodeId, input);
-      portfolio.updateNodeLocal(updated);
+      const { node: updated, ancestors } = await moveWbsNode(token, nodeId, input);
+      // Aplicamos el nodo + ancestros recalculados por el trigger backend.
+      // Si el backend no soporta aún el campo ancestors (deploy parcial), el rollup
+      // optimistic en cliente sigue cubriendo el caso.
+      portfolio.updateNodeLocalWithRollup(updated, previousParentId);
+      for (const a of ancestors) portfolio.updateNodeLocal(a);
       notify({ tone: 'success', title: 'Nodo movido' });
       return true;
     } catch {
@@ -643,11 +649,13 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
                   if (!token) return;
                   const previous = portfolio.data?.nodes.find((n) => n.id === nodeId);
                   if (previous) {
-                    portfolio.updateNodeLocal({ ...previous, start_date: input.start_date, end_date: input.end_date, is_unscheduled: false });
+                    // Optimistic: el padre se actualiza al instante via rollup local.
+                    portfolio.updateNodeLocalWithRollup({ ...previous, start_date: input.start_date, end_date: input.end_date, is_unscheduled: false });
                   }
                   try {
-                    const updated = await scheduleWbsNode(token, nodeId, input);
-                    portfolio.updateNodeLocal(updated);
+                    const { node: updated, ancestors } = await scheduleWbsNode(token, nodeId, input);
+                    portfolio.updateNodeLocalWithRollup(updated);
+                    for (const a of ancestors) portfolio.updateNodeLocal(a);
                     notify({ tone: 'success', title: 'Fechas guardadas' });
                   } catch (error) {
                     if (previous) portfolio.updateNodeLocal(previous);
