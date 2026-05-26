@@ -256,15 +256,28 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     // se pierden en el siguiente refresh del portfolio.
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+    const coerceDate = (value: unknown): Date | null => {
+      if (!value) return null;
+      if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+      if (typeof value === 'string') {
+        const d = parseLocalYmdMaybe(value);
+        return Number.isNaN(d.getTime()) ? null : d;
+      }
+      if (typeof value === 'number') {
+        const d = new Date(value);
+        return Number.isNaN(d.getTime()) ? null : d;
+      }
+      return null;
+    };
+
     const persistDatesFromItem = (taskId: string, item: unknown) => {
       const node = nodesRef.current.find((n) => n.id === taskId);
       if (!node || node.type === 'project') return;
 
-      const startDate = (item as { start_date?: Date | string }).start_date;
+      const startDate = (item as { start_date?: unknown }).start_date;
       const duration = Math.max(1, Math.round((item as { duration?: number }).duration ?? 1));
-      if (!startDate) return;
-      const start = startDate instanceof Date ? startDate : new Date(startDate);
-      if (Number.isNaN(start.getTime())) return;
+      const start = coerceDate(startDate);
+      if (!start) return;
 
       // DHTMLX Gantt usa internamente end_date como límite exclusivo.
       // Nuestra API/DB usa end_date inclusivo (YYYY-MM-DD). Convertimos aquí.
@@ -294,7 +307,7 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       // como señal exclusiva de "edición de estado".
       const startDate = (item as { start_date?: Date | string }).start_date;
       const duration = Math.max(1, Math.round((item as { duration?: number }).duration ?? 1));
-      const start = startDate ? (startDate instanceof Date ? startDate : new Date(startDate)) : null;
+      const start = startDate ? coerceDate(startDate) : null;
       const end = start && !Number.isNaN(start.getTime())
         ? (() => {
           const exclusive = gantt.calculateEndDate({ start_date: start, duration, unit: 'day' });
