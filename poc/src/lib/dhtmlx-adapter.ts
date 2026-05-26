@@ -25,29 +25,51 @@ export interface GanttLink {
 const DEP_TYPE: Record<string, string> = { FS: '0', SS: '1', FF: '2', SF: '3' };
 
 function durationInDays(start: string | null, end: string | null, fallback: number | null): number {
-  if (fallback && fallback > 0) return fallback;
-  if (!start || !end) return 1;
-  // Evitar `new Date('YYYY-MM-DD')` (UTC) que puede correrse según TZ/DST.
-  // Persistimos fechas como YYYY-MM-DD (calendario local), así que calculamos en local.
-  const [sy, sm, sd] = start.split('-').map((v) => Number(v));
-  const [ey, em, ed] = end.split('-').map((v) => Number(v));
-  const startTime = new Date(sy, (sm ?? 1) - 1, sd ?? 1).getTime();
-  const endTime = new Date(ey, (em ?? 1) - 1, ed ?? 1).getTime();
-  if (Number.isNaN(startTime) || Number.isNaN(endTime)) return 1;
-  return Math.max(1, Math.round((endTime - startTime) / 86400000) + 1);
+  // Si tenemos start y end, calculamos inclusivo aquí. NO usamos `node.duration_days` de la DB
+  // como atajo: ese campo lo genera Postgres como `end_date - start_date` (exclusivo), y DHTMLX
+  // espera duration = nº de días que cubre la barra (inclusivo). La inconsistencia provocaba
+  // que al ampliar la barra desde la izquierda el extremo derecho retrocediera un día.
+  if (start && end) {
+    const startTime = parseLocalYmd(start).getTime();
+    const endTime = parseLocalYmd(end).getTime();
+    if (!Number.isNaN(startTime) && !Number.isNaN(endTime)) {
+      return Math.max(1, Math.round((endTime - startTime) / 86400000) + 1);
+    }
+  }
+  if (fallback && Number.isFinite(fallback) && fallback > 0) return Math.round(fallback);
+  return 1;
 }
 
-function parseLocalYmd(ymd: string): Date {
-  const [y, m, d] = ymd.split('-').map((v) => Number(v));
-  return new Date(y, (m ?? 1) - 1, d ?? 1);
-}
-
-function todayLocalYmd(): string {
+function todayLocal(): Date {
   const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+// Devuelve SIEMPRE una Date válida en horario local.
+// DHTMLX llama internamente `calculateEndDate` sobre cada tarea y lanza
+// "Invalid start_date argument for calculateEndDate method" si recibe un Invalid Date.
+// Por eso aquí toleramos Date, strings YYYY-MM-DD, ISO con tiempo (YYYY-MM-DDTHH:..)
+// y caemos a hoy si nada matchea.
+function parseLocalYmd(value: string | Date | null | undefined): Date {
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return todayLocal();
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  }
+  if (typeof value === 'string') {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+    if (m) {
+      const y = Number(m[1]);
+      const mo = Number(m[2]) - 1;
+      const d = Number(m[3]);
+      const parsed = new Date(y, mo, d);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+    const fallback = new Date(value);
+    if (!Number.isNaN(fallback.getTime())) {
+      return new Date(fallback.getFullYear(), fallback.getMonth(), fallback.getDate());
+    }
+  }
+  return todayLocal();
 }
 
 function computeNodeStatus(node: WbsNode): string {
@@ -68,7 +90,7 @@ export function toGanttData(nodes: WbsNode[], dependencies: Dependency[], collap
     text: node.name,
     // Evita parseo UTC de 'YYYY-MM-DD' en algunos paths (puede mover la barra al día anterior).
     // Damos Date en horario local para que DHTMLX pinte en el día correcto.
-    start_date: parseLocalYmd(node.start_date ?? todayLocalYmd()),
+    start_date: parseLocalYmd(node.start_date),
     duration: node.type === 'milestone' ? 0 : durationInDays(node.start_date, node.end_date, node.duration_days),
     progress: Math.max(0, Math.min(1, node.progress ?? 0)),
     parent: node.parent_id && existingIds.has(node.parent_id) ? node.parent_id : 0,
