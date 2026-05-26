@@ -461,11 +461,25 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     if (canIncremental) {
       // Update incremental: solo refrescamos campos visibles de tareas existentes.
       // Mucho mas barato que clearAll+parse cuando solo cambiaron fechas / status / progress.
+      //
+      // Importante: seteamos `end_date` explicitamente (formato EXCLUSIVO que espera
+      // DHTMLX, = start + duration). Si solo actualizamos start+duration, DHTMLX
+      // suele dejar el end_date interno stale → la barra del PADRE no se ensancha
+      // cuando una hija extiende su fecha de fin.
       for (const task of ganttData.data) {
         if (!gantt.isTaskExists(task.id)) continue;
         const existing = gantt.getTask(task.id) as Record<string, unknown>;
-        existing.start_date = task.start_date as unknown;
+        const startDate = task.start_date instanceof Date ? task.start_date : new Date(task.start_date);
+        existing.start_date = startDate;
         existing.duration = task.duration;
+        if (task.duration > 0) {
+          const endDate = new Date(startDate.getTime());
+          endDate.setDate(endDate.getDate() + task.duration);
+          existing.end_date = endDate;
+        } else {
+          // Milestone (duration=0): end == start.
+          existing.end_date = startDate;
+        }
         existing.progress = task.progress;
         existing.text = task.text;
         existing.color = task.color;
