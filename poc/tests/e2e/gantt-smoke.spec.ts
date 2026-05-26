@@ -6,6 +6,7 @@ const users = [
 ];
 
 const project = { id: 'project-demo', name: 'Demo E2E', description: null, status: 'active', budget_total: 250000 };
+const NOW = new Date().toISOString().slice(0, 10);
 
 test('handles toast notifications for validation errors on empty name', async ({ page }) => {
   await mockApi(page);
@@ -38,8 +39,49 @@ test('keeps single-day tasks at duration=1', async ({ page }) => {
 
 async function mockApi(page: Page) {
   const state = {
-    projects: [] as Array<typeof project>,
-    nodes: [] as WbsNode[],
+    projects: [project] as Array<typeof project>,
+    nodes: [
+      {
+        id: 'n-root',
+        project_id: project.id,
+        parent_id: null,
+        name: project.name,
+        type: 'project',
+        description: null,
+        start_date: NOW,
+        end_date: NOW,
+        duration_days: 1,
+        progress: 0,
+        estimated_hours: null,
+        estimated_cost: null,
+        color: null,
+        sort_order: 0,
+        responsible_id: 'user-resp',
+        is_unscheduled: false,
+        status: null,
+        path: 'n_root',
+      },
+      {
+        id: 'n-task1',
+        project_id: project.id,
+        parent_id: 'n-root',
+        name: 'Tarea A',
+        type: 'task',
+        description: null,
+        start_date: NOW,
+        end_date: NOW,
+        duration_days: null,
+        progress: 0,
+        estimated_hours: null,
+        estimated_cost: null,
+        color: null,
+        sort_order: 0,
+        responsible_id: 'user-exec',
+        is_unscheduled: false,
+        status: null,
+        path: 'n_root.n_task1',
+      },
+    ] as WbsNode[],
     backlog: [] as WbsNode[],
     dependencies: [] as unknown[],
     assignees: [] as unknown[],
