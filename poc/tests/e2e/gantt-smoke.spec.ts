@@ -17,6 +17,21 @@ test('handles toast notifications for validation errors on empty name', async ({
   await page.getByRole('button', { name: 'Cancelar' }).click();
 });
 
+test('keeps single-day tasks at duration=1', async ({ page }) => {
+  await mockApi(page);
+  await page.addInitScript(() => window.localStorage.setItem('abax.auth.token', 'e2e-token'));
+  await page.goto('/abax-gantt/gantt');
+  await page.waitForSelector('.gantt_container', { timeout: 10000 });
+
+  const duration = await page.evaluate(() => {
+    const g = (window as unknown as { gantt?: any; dhtmlx?: any }).gantt ?? (window as unknown as { dhtmlx?: any }).dhtmlx?.gantt;
+    if (!g?.getTask) return null;
+    const task = g.getTask('n-task1');
+    return task?.duration ?? null;
+  });
+  expect(duration).toBe(1);
+});
+
 async function mockApi(page: Page) {
   const state = {
     projects: [] as Array<typeof project>,
