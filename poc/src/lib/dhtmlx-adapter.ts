@@ -72,15 +72,6 @@ function parseLocalYmd(value: string | Date | null | undefined): Date {
   return todayLocal();
 }
 
-function computeNodeStatus(node: WbsNode): string {
-  if (node.status) return node.status;
-  const today = new Date().toISOString().slice(0, 10);
-  if ((node.progress ?? 0) >= 1) return 'completado';
-  if (node.end_date && node.end_date < today) return 'retrasado';
-  if ((node.progress ?? 0) > 0) return 'en_progreso';
-  return 'pendiente';
-}
-
 export function toGanttData(nodes: WbsNode[], dependencies: Dependency[], collapsedIds?: Set<string>) {
   const scheduledNodes = nodes.filter((node) => !node.is_unscheduled && (node.start_date || node.type === 'project'));
   const existingIds = new Set(scheduledNodes.map((node) => node.id));
@@ -97,7 +88,12 @@ export function toGanttData(nodes: WbsNode[], dependencies: Dependency[], collap
     type: node.type,
     open: collapsedIds ? !collapsedIds.has(node.id) : true,
     color: node.color ?? undefined,
-    status: computeNodeStatus(node),
+    // status raw (el `node.status` directo o '__auto__' si esta en automatico).
+    // El template visual usa computeNodeStatus(node) para el badge; aqui mandamos
+    // el RAW porque es lo que el editor inline (map_to: 'status') guarda y compara.
+    // Si poniamos el computado, DHTMLX no detectaba cambio en task.status tras
+    // un update local y la celda no se refrescaba.
+    status: node.status ?? '__auto__',
     isUnscheduled: (node as WbsNode & { _from_backlog?: boolean })._from_backlog === true,
     node,
   }));
