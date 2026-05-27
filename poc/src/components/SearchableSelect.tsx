@@ -5,9 +5,12 @@ interface SearchableSelectProps {
   options: Array<{ id: string; label: string }>;
   placeholder?: string;
   onChange: (id: string | null) => void;
+  /** Etiqueta accesible para lectores de pantalla. Sin esto, el input solo se
+   * anuncia como "edit" sin contexto. */
+  ariaLabel?: string;
 }
 
-export function SearchableSelect({ value, options, placeholder = 'Buscar...', onChange }: SearchableSelectProps) {
+export function SearchableSelect({ value, options, placeholder = 'Buscar...', onChange, ariaLabel }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -41,6 +44,10 @@ export function SearchableSelect({ value, options, placeholder = 'Buscar...', on
       <input
         ref={inputRef}
         type="text"
+        role="combobox"
+        aria-expanded={open}
+        aria-autocomplete="list"
+        aria-label={ariaLabel ?? placeholder}
         placeholder={placeholderText}
         value={displayValue}
         onFocus={handleOpen}

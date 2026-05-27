@@ -1,5 +1,6 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTheme } from '../lib/theme';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { ShortcutsModal } from './ShortcutsModal';
 import type { Summary } from '../lib/types';
 
@@ -23,7 +24,25 @@ const money = new Intl.NumberFormat('es-MX', { notation: 'compact', style: 'curr
 export function AppShell({ children, summary, userName, onLogout, onSearch, onOpenAdmin, breadcrumb, detailVisible, onToggleDetail, fullscreen }: AppShellProps) {
   const { theme, toggle } = useTheme();
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 250);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  // Propaga al padre solo el valor debounceado, no en cada keystroke.
+  useEffect(() => { onSearch?.(debouncedSearch); }, [debouncedSearch, onSearch]);
+
+  // ⌘K / Ctrl+K: enfoca la busqueda global. Es el atajo prometido por el <kbd> del input.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const isK = e.key === 'k' || e.key === 'K';
+      if (!isK || !(e.metaKey || e.ctrlKey)) return;
+      e.preventDefault();
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
   // V-23: KPIs colapsados por defecto (línea compacta), expandibles a tarjetas grandes.
   // Estado persistido para respetar la preferencia del usuario.
   const [kpiExpanded, setKpiExpanded] = useState<boolean>(() => {
@@ -57,8 +76,8 @@ export function AppShell({ children, summary, userName, onLogout, onSearch, onOp
   ];
 
   const handleSearch = (value: string) => {
+    // Solo actualizamos el estado local; el debouncer se encarga del onSearch.
     setSearch(value);
-    onSearch?.(value);
   };
 
   return (
@@ -73,10 +92,24 @@ export function AppShell({ children, summary, userName, onLogout, onSearch, onOp
           <b>{breadcrumb ?? 'Vista consolidada'}</b>
         </div>
         <label className="global-search">
-          <input placeholder="Buscar tareas, proyectos, personas..." value={search} onChange={(e) => handleSearch(e.target.value)} />
-          <kbd>⌘K</kbd>
+          <span className="sr-only">Búsqueda global</span>
+          <input
+            ref={searchInputRef}
+            type="search"
+            placeholder="Buscar tareas, proyectos, personas..."
+            aria-label="Búsqueda global (atajo: Ctrl/Cmd + K)"
+            aria-keyshortcuts="Control+K Meta+K"
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
+          />
+          <kbd aria-hidden="true">⌘K</kbd>
         </label>
-        <button className="theme-toggle" onClick={toggle} title={`Cambiar a tema ${theme === 'light' ? 'oscuro' : 'claro'}`}>
+        <button
+          className="theme-toggle"
+          onClick={toggle}
+          title={`Cambiar a tema ${theme === 'light' ? 'oscuro' : 'claro'}`}
+          aria-label={`Cambiar a tema ${theme === 'light' ? 'oscuro' : 'claro'}`}
+        >
           {theme === 'light' ? '☽' : '☀'}
         </button>
         <button className="theme-toggle" onClick={() => setShortcutsOpen(true)} title="Atajos de teclado (?)" aria-label="Ver atajos de teclado">?</button>

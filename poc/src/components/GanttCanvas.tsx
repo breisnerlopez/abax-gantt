@@ -524,13 +524,50 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
   }, []);
 
   useEffect(() => {
+    // Solo capturamos atajos cuando el foco esta DENTRO del canvas del Gantt
+    // (o en el body sin foco activo). De lo contrario, escribir "-" en un input
+    // de FilterBar/AppShell disparaba zoom. Tambien ignoramos modificadores
+    // (Ctrl/Meta/Alt) para no chocar con shortcuts del navegador.
+    const isEditableTarget = (target: EventTarget | null): boolean => {
+      if (!(target instanceof HTMLElement)) return false;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
+      if (target.isContentEditable) return true;
+      const role = target.getAttribute('role');
+      if (role === 'textbox' || role === 'combobox' || role === 'searchbox') return true;
+      return false;
+    };
+    const focusInsideGantt = (target: EventTarget | null): boolean => {
+      const container = containerRef.current;
+      if (!container) return false;
+      if (target === container) return true;
+      if (target instanceof Node && container.contains(target)) return true;
+      return target === document.body || target === null;
+    };
+
     const listener = (e: KeyboardEvent) => {
-      const isInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
-      if (isInput) return;
-      if (e.key === '+' || e.key === '=') { e.preventDefault(); try { gantt.ext.zoom.zoomIn(); } catch { /* noop */ } }
-      if (e.key === '-') { e.preventDefault(); try { gantt.ext.zoom.zoomOut(); } catch { /* noop */ } }
-      if (e.key === 'ArrowLeft') { e.preventDefault(); try { gantt.ext.zoom.zoomOut(); } catch { /* noop */ } }
-      if (e.key === 'ArrowRight') { e.preventDefault(); try { gantt.ext.zoom.zoomIn(); } catch { /* noop */ } }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (isEditableTarget(e.target)) return;
+      if (!focusInsideGantt(e.target)) return;
+
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        try { gantt.ext.zoom.zoomIn(); } catch { /* noop */ }
+      } else if (e.key === '-') {
+        e.preventDefault();
+        try { gantt.ext.zoom.zoomOut(); } catch { /* noop */ }
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        // Pan temporal: mueve el viewport una unidad de la escala visible.
+        // Alineado con la doc de ShortcutsModal ("Avanzar/Retroceder en el tiempo").
+        e.preventDefault();
+        try {
+          const range = gantt.getState().scale_unit || 'day';
+          const stepDays = range === 'year' ? 90 : range === 'month' ? 30 : range === 'week' ? 7 : 1;
+          const visible = gantt.getState();
+          const center = new Date(((visible.min_date as Date).getTime() + (visible.max_date as Date).getTime()) / 2);
+          center.setDate(center.getDate() + (e.key === 'ArrowRight' ? stepDays : -stepDays));
+          gantt.showDate(center);
+        } catch { /* noop */ }
+      }
     };
     window.addEventListener('keydown', listener);
     return () => window.removeEventListener('keydown', listener);

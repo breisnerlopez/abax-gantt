@@ -280,7 +280,11 @@ kbd { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; fo
 .filter-more:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
 .filter-more.is-active { border-color: var(--accent) !important; border-style: solid !important; color: var(--accent) !important; font-weight: 600; }
 .filter-chips-row { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; }
-.filter-chip { display: inline-flex; align-items: center; padding: 2px 8px; background: var(--accent-soft); color: var(--accent-text); border-radius: 11px; font-size: 11.5px; font-weight: 500; }
+.filter-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 8px; background: var(--accent-soft); color: var(--accent-text); border-radius: 11px; font-size: 11.5px; font-weight: 500; }
+.filter-chip-remove { display: inline-grid; place-items: center; width: 16px; height: 16px; border: 0; border-radius: 50%; background: transparent; color: var(--accent-text); font-size: 14px; line-height: 1; cursor: pointer; padding: 0; opacity: .7; }
+.filter-chip-remove:hover, .filter-chip-remove:focus-visible { background: var(--accent); color: #fff; opacity: 1; outline: none; }
+/* Texto visualmente oculto pero accesible para lectores de pantalla. */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .clear-button { height: 22px !important; padding: 0 8px !important; border: 0 !important; background: transparent !important; color: var(--text-tertiary) !important; font-size: 11.5px !important; text-decoration: underline; }
 .clear-button:hover { color: var(--danger) !important; background: transparent !important; }
 .filter-count { margin-left: auto; color: var(--text-tertiary); font-size: 11.5px; }

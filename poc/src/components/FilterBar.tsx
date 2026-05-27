@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SearchableSelect } from './SearchableSelect';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import type { NodeType } from '../lib/types';
 
 interface FilterBarProps {
@@ -54,18 +55,29 @@ export function FilterBar({
   activeOnly, onActiveOnly,
   totalVisible, hasActiveFilters, onClear, users,
 }: FilterBarProps) {
-  const filters: string[] = [];
+  // Debounce: la busqueda escribe en estado local y solo llama onSearch tras 250ms
+  // de inactividad. Evita filtrar 1700+ nodos en cada keystroke.
+  const [searchLocal, setSearchLocal] = useState(search);
+  const debouncedSearch = useDebouncedValue(searchLocal, 250);
+  useEffect(() => { if (debouncedSearch !== search) onSearch(debouncedSearch); }, [debouncedSearch, search, onSearch]);
+  // Si el padre limpia los filtros, sincronizamos el input local.
+  useEffect(() => { if (search !== searchLocal && search === '') setSearchLocal(''); }, [search, searchLocal]);
+
   const projectName = projectFilter ? (projectOptions.find((p) => p.id === projectFilter)?.name ?? projectFilter) : null;
   const responsibleName = responsibleFilter ? (users.find((u) => u.id === responsibleFilter)?.full_name ?? 'Usuario') : null;
   const assigneeName = assigneeFilter ? (users.find((u) => u.id === assigneeFilter)?.full_name ?? 'Usuario') : null;
 
-  if (search) filters.push(`Buscar: "${search}"`);
-  if (typeFilter) filters.push(`Tipo: ${nodeTypeLabels[typeFilter]}`);
-  if (showUnscheduled) filters.push('Solo backlog');
-  if (projectName) filters.push(projectName);
-  if (responsibleName) filters.push(`Resp: ${responsibleName}`);
-  if (assigneeName) filters.push(`Asig: ${assigneeName}`);
-  if (statusFilter) filters.push(statusLabels[statusFilter] ?? statusFilter);
+  // Cada chip es removible: label + handler que limpia ese filtro especifico.
+  const activeFilters: Array<{ key: string; label: string; clear: () => void }> = [];
+  if (search) activeFilters.push({ key: 'search', label: `Buscar: "${search}"`, clear: () => { setSearchLocal(''); onSearch(''); } });
+  if (typeFilter) activeFilters.push({ key: 'type', label: `Tipo: ${nodeTypeLabels[typeFilter]}`, clear: () => onTypeFilter(null) });
+  if (showUnscheduled) activeFilters.push({ key: 'unsched', label: 'Solo backlog', clear: () => onShowUnscheduled(false) });
+  if (projectName) activeFilters.push({ key: 'project', label: projectName, clear: () => onProjectFilter(null) });
+  if (responsibleName) activeFilters.push({ key: 'resp', label: `Resp: ${responsibleName}`, clear: () => onResponsibleFilter(null) });
+  if (assigneeName) activeFilters.push({ key: 'asig', label: `Asig: ${assigneeName}`, clear: () => onAssigneeFilter(null) });
+  if (statusFilter) activeFilters.push({ key: 'status', label: statusLabels[statusFilter] ?? statusFilter, clear: () => onStatusFilter(null) });
+  if (dateFrom) activeFilters.push({ key: 'from', label: `Desde ${dateFrom}`, clear: () => onDateFrom('') });
+  if (dateTo) activeFilters.push({ key: 'to', label: `Hasta ${dateTo}`, clear: () => onDateTo('') });
 
   const [moreOpen, setMoreOpen] = useState(false);
   const moreActive = !!(projectFilter || responsibleFilter || assigneeFilter || statusFilter || dateFrom || dateTo);
@@ -77,8 +89,9 @@ export function FilterBar({
         className="filter-search filter-search--main"
         type="search"
         placeholder="Filtrar por nombre…"
-        value={search}
-        onChange={(e) => onSearch(e.target.value)}
+        aria-label="Filtrar nodos por nombre"
+        value={searchLocal}
+        onChange={(e) => setSearchLocal(e.target.value)}
       />
       {nodeTypes.map((type) => (
         <button
@@ -115,9 +128,19 @@ export function FilterBar({
       >
         Más filtros {moreActive ? `(${advancedCount})` : '▾'}
       </button>
-      {filters.length > 0 && (
-        <div className="filter-chips-row">
-          {filters.map((f) => <span key={f} className="filter-chip">{f}</span>)}
+      {activeFilters.length > 0 && (
+        <div className="filter-chips-row" role="list" aria-label="Filtros activos">
+          {activeFilters.map((f) => (
+            <span key={f.key} className="filter-chip" role="listitem">
+              {f.label}
+              <button
+                type="button"
+                className="filter-chip-remove"
+                aria-label={`Quitar filtro: ${f.label}`}
+                onClick={f.clear}
+              >×</button>
+            </span>
+          ))}
         </div>
       )}
       <button className={`clear-button${!hasActiveFilters ? ' clear-button--idle' : ''}`} onClick={hasActiveFilters ? onClear : undefined} disabled={!hasActiveFilters}>Limpiar</button>
@@ -131,6 +154,7 @@ export function FilterBar({
               value={projectFilter ?? ''}
               options={projectOptions.map((p) => ({ id: p.id, label: p.name }))}
               placeholder="Todos"
+              ariaLabel="Filtrar por proyecto"
               onChange={(id) => onProjectFilter(id)}
             />
           </label>
@@ -140,6 +164,7 @@ export function FilterBar({
               value={responsibleFilter ?? ''}
               options={users.map((u) => ({ id: u.id, label: u.full_name ?? u.email ?? u.id }))}
               placeholder="Cualquiera"
+              ariaLabel="Filtrar por responsable"
               onChange={(id) => onResponsibleFilter(id)}
             />
           </label>
@@ -149,6 +174,7 @@ export function FilterBar({
               value={assigneeFilter ?? ''}
               options={users.map((u) => ({ id: u.id, label: u.full_name ?? u.email ?? u.id }))}
               placeholder="Cualquiera"
+              ariaLabel="Filtrar por ejecutor"
               onChange={(id) => onAssigneeFilter(id)}
             />
           </label>
