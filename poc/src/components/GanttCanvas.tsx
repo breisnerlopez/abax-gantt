@@ -162,7 +162,13 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
           const ganttTask = task as { node?: WbsNode };
           if (!ganttTask.node) return '';
           const s = computeNodeStatus(ganttTask.node);
-          return `<span class="status-badge status-badge--${s}">${STATUS_LABELS[s] ?? s}</span>`;
+          // Punto a la izquierda cuando el estado es manual (node.status no es null).
+          // Asi el usuario VE que su seleccion se guardo incluso cuando el computed
+          // coincide con el manual (caso comun: progress=1 + selecciona "Completado").
+          const isManual = ganttTask.node.status != null;
+          const cls = `status-badge status-badge--${s}${isManual ? ' status-badge--manual' : ''}`;
+          const title = isManual ? `Estado manual: ${STATUS_LABELS[s] ?? s}` : `Estado automatico: ${STATUS_LABELS[s] ?? s}`;
+          return `<span class="${cls}" title="${title}">${STATUS_LABELS[s] ?? s}</span>`;
         },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
@@ -342,10 +348,15 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       const newStatus = (item as { status?: string }).status;
       if (newStatus !== undefined) {
         const resolved = newStatus === '__auto__' ? null : newStatus;
-        const oldComputed = computeNodeStatus(node);
-        const newComputed = resolved ?? computeNodeStatus({ ...node, status: null } as WbsNode);
-        if (resolved === node.status || (!resolved && !node.status)) { gantt.closeEditor(); return true; }
-        if (!resolved && oldComputed === newComputed) { gantt.closeEditor(); return true; }
+        // Solo salimos si el RAW realmente no cambio. Antes habia un segundo guard
+        // que comparaba el COMPUTED y descartaba el switch manual <-> auto cuando
+        // casualmente coincidian visualmente. Eso impedia ir de 'pendiente' manual
+        // a auto cuando el computed seguia siendo 'pendiente' — el usuario lo veia
+        // como "no se guarda".
+        if (resolved === node.status || (!resolved && !node.status)) {
+          gantt.closeEditor();
+          return true;
+        }
         node.status = resolved ?? null;
         void callbacksRef.current.onUpdateStatus?.(taskId, resolved).catch(() => {
           gantt.parse(toGanttData(nodesRef.current, dependenciesRef.current));

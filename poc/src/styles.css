@@ -188,6 +188,30 @@ kbd { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; fo
 .status-badge--cancelado { background: #f3f4f6; color: #6b7280; text-decoration: line-through; }
 .status-badge--en_pausa { background: #fef9c3; color: #a16207; }
 .status-badge--en_revision { background: #ede9fe; color: #6b21a8; }
+/* Marca de "estado manual" — un punto a la izquierda indica que el valor lo fijo
+   el usuario y no se recalcula automaticamente desde progreso/fecha. Sin punto
+   = automatico. Hace visible la diferencia cuando el computed coincide. */
+.status-badge--manual::before { content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%; margin-right: 4px; background: currentColor; vertical-align: 1px; opacity: .8; }
+
+/* Editor inline del Gantt (DHTMLX usa <select> y <input> nativos en el grid).
+   Sin estos overrides se ven con el chrome por defecto del navegador y rompen
+   con el resto del tema. */
+.gantt_grid_editor select,
+.gantt_grid_editor input,
+.gantt_grid_editor textarea {
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.gantt_grid_editor select:focus,
+.gantt_grid_editor input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .detail-tabs { flex: none; display: flex; gap: 2px; padding: 0 4px; border-bottom: 1px solid var(--border); overflow-x: auto; }
 .detail-tabs button { border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 8px 10px; color: var(--text-secondary); white-space: nowrap; }
 .detail-tabs button.active { color: var(--text); border-bottom-color: var(--text); }
