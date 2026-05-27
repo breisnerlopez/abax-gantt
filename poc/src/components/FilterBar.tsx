@@ -58,10 +58,15 @@ export function FilterBar({
   // Debounce: la busqueda escribe en estado local y solo llama onSearch tras 250ms
   // de inactividad. Evita filtrar 1700+ nodos en cada keystroke.
   const [searchLocal, setSearchLocal] = useState(search);
+  // Patron React 19: sync de prop->state durante render con guard, en vez de
+  // useEffect+setState (que dispara renders en cascada).
+  const [prevPropSearch, setPrevPropSearch] = useState(search);
+  if (search !== prevPropSearch) {
+    setPrevPropSearch(search);
+    if (search === '') setSearchLocal('');
+  }
   const debouncedSearch = useDebouncedValue(searchLocal, 250);
   useEffect(() => { if (debouncedSearch !== search) onSearch(debouncedSearch); }, [debouncedSearch, search, onSearch]);
-  // Si el padre limpia los filtros, sincronizamos el input local.
-  useEffect(() => { if (search !== searchLocal && search === '') setSearchLocal(''); }, [search, searchLocal]);
 
   const projectName = projectFilter ? (projectOptions.find((p) => p.id === projectFilter)?.name ?? projectFilter) : null;
   const responsibleName = responsibleFilter ? (users.find((u) => u.id === responsibleFilter)?.full_name ?? 'Usuario') : null;
