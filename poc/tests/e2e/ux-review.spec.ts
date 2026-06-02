@@ -446,15 +446,16 @@ test.describe('FilterBar — Filtros', () => {
     const state = freshState();
     await setupMockApi(page, state);
     await gotoGantt(page);
-    await expect(page.locator('.filter-bar')).toBeVisible();
-    await expect(page.locator('.filter-search--main')).toBeVisible();
+    // Rediseño Fase 3: .filter-bar antiguo → .filterbar; búsqueda dentro de .fb-search.
+    await expect(page.locator('.filterbar')).toBeVisible();
+    await expect(page.locator('.fb-search input')).toBeVisible();
   });
 
   test('filtro por nombre busca tareas', async ({ page }) => {
     const state = freshState();
     await setupMockApi(page, state);
     await gotoGantt(page);
-    const search = page.locator('.filter-search--main');
+    const search = page.locator('.fb-search input');
     await search.fill('Tarea A');
     await expect(search).toHaveValue('Tarea A');
   });
@@ -463,27 +464,40 @@ test.describe('FilterBar — Filtros', () => {
     const state = freshState();
     await setupMockApi(page, state);
     await gotoGantt(page);
-    await expect(page.locator('.filter-chip-btn').filter({ hasText: 'Tarea' })).toBeVisible();
-    await page.locator('.filter-chip-btn').filter({ hasText: 'Tarea' }).click();
-    await page.locator('.filter-chip-btn').filter({ hasText: 'Tarea' }).click();
+    // Rediseño: "Tipo" ahora es un dropdown exclusivo (chip "Tipo: …" + menú).
+    const tipoChip = page.locator('.fb-chip').filter({ hasText: /^Tipo:/ });
+    await expect(tipoChip).toBeVisible();
+    await tipoChip.click();
+    await page.locator('.fb-menu-item').filter({ hasText: 'Tarea' }).click();
+    await expect(tipoChip).toContainText('Tarea');
+    // Reabrir y volver a "Todos" para desactivar
+    await tipoChip.click();
+    await page.locator('.fb-menu-item').filter({ hasText: 'Todos' }).click();
+    await expect(tipoChip).toContainText('Todos');
   });
 
   test('filtro Solo backlog', async ({ page }) => {
     const state = freshState();
     await setupMockApi(page, state);
     await gotoGantt(page);
-    await expect(page.locator('.filter-chip-btn').filter({ hasText: 'Solo backlog' })).toBeVisible();
-    await page.locator('.filter-chip-btn').filter({ hasText: 'Solo backlog' }).click();
-    await page.locator('.filter-chip-btn').filter({ hasText: 'Solo backlog' }).click();
+    // Rediseño: "Solo backlog" vive dentro de "Más filtros" como toggle.
+    await page.locator('.fb-chip').filter({ hasText: 'Más filtros' }).click();
+    const toggle = page.locator('.fb-toggle').filter({ hasText: 'Solo backlog' });
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+    await expect(toggle).toHaveClass(/is-on/);
+    await toggle.click();
+    await expect(toggle).not.toHaveClass(/is-on/);
   });
 
   test('botón Limpiar filtros aparece cuando hay filtros activos', async ({ page }) => {
     const state = freshState();
     await setupMockApi(page, state);
     await gotoGantt(page);
-    const clearBtn = page.locator('.clear-button');
+    const clearBtn = page.locator('.fb-clear');
     await expect(clearBtn).toBeDisabled();
-    await page.locator('.filter-chip-btn').filter({ hasText: 'Tarea' }).click();
+    // Activar un filtro de estado (semáforo) que es siempre visible
+    await page.locator('.qfilter').filter({ hasText: 'Pendiente' }).click();
     await expect(clearBtn).not.toBeDisabled();
     await clearBtn.click();
     await expect(clearBtn).toBeDisabled();
@@ -493,28 +507,31 @@ test.describe('FilterBar — Filtros', () => {
     const state = freshState();
     await setupMockApi(page, state);
     await gotoGantt(page);
-    await page.locator('.filter-more').click();
-    await expect(page.locator('.filter-more-popover')).toBeVisible();
-    await expect(page.locator('.filter-more-popover label').filter({ hasText: 'Proyecto' })).toBeVisible();
-    await expect(page.locator('.filter-more-popover label').filter({ hasText: 'Responsable' })).toBeVisible();
-    await expect(page.locator('.filter-more-popover label').filter({ hasText: 'Ejecutor' })).toBeVisible();
-    await expect(page.locator('.filter-more-popover label').filter({ hasText: 'Estado' })).toBeVisible();
-    await page.locator('.filter-more-popover button').filter({ hasText: 'Cerrar' }).click();
-    await expect(page.locator('.filter-more-popover')).not.toBeVisible();
+    await page.locator('.fb-chip').filter({ hasText: 'Más filtros' }).click();
+    await expect(page.locator('.fb-menu-wide')).toBeVisible();
+    // Labels del menú avanzado (Proyecto / Responsable / Ejecutor / Vista / etc.)
+    await expect(page.locator('.fb-menu-label').filter({ hasText: 'Proyecto' })).toBeVisible();
+    await expect(page.locator('.fb-menu-label').filter({ hasText: 'Responsable' })).toBeVisible();
+    await expect(page.locator('.fb-menu-label').filter({ hasText: 'Ejecutor' })).toBeVisible();
+    await page.locator('.fb-menu-actions button').filter({ hasText: 'Cerrar' }).click();
+    await expect(page.locator('.fb-menu-wide')).not.toBeVisible();
   });
 
   test('contador de elementos visible', async ({ page }) => {
     const state = freshState();
     await setupMockApi(page, state);
     await gotoGantt(page);
-    await expect(page.locator('.filter-count')).toBeVisible();
+    await expect(page.locator('.fb-count')).toBeVisible();
   });
 
-  test('Ocultar cerrados toggle', async ({ page }) => {
+  test('Mostrar cerrados toggle (antes "Ocultar cerrados")', async ({ page }) => {
     const state = freshState();
     await setupMockApi(page, state);
     await gotoGantt(page);
-    await expect(page.locator('.filter-chip-btn').filter({ hasText: 'Ocultar cerrados' })).toBeVisible();
+    // Rediseño: el toggle vive dentro de "Más filtros". Semántica invertida
+    // (antes "Ocultar cerrados", ahora "Mostrar cerrados") con default inactivo.
+    await page.locator('.fb-chip').filter({ hasText: 'Más filtros' }).click();
+    await expect(page.locator('.fb-toggle').filter({ hasText: 'Mostrar cerrados' })).toBeVisible();
   });
 });
 
@@ -739,22 +756,23 @@ test.describe('Filtros de proyecto, responsable, ejecutor y estado', () => {
     const state = freshState();
     await setupMockApi(page, state);
     await gotoGantt(page);
-    await page.locator('.filter-more').click();
-    await expect(page.locator('.filter-more-popover')).toBeVisible();
-    await expect(page.locator('.filter-more-popover label').filter({ hasText: 'Proyecto' })).toBeVisible();
-    await page.locator('.filter-more-popover button').filter({ hasText: 'Cerrar' }).click();
+    await page.locator('.fb-chip').filter({ hasText: 'Más filtros' }).click();
+    await expect(page.locator('.fb-menu-wide')).toBeVisible();
+    await expect(page.locator('.fb-menu-label').filter({ hasText: 'Proyecto' })).toBeVisible();
+    await page.locator('.fb-menu-actions button').filter({ hasText: 'Cerrar' }).click();
   });
 
   test('filtro estado en Más filtros', async ({ page }) => {
     const state = freshState();
     await setupMockApi(page, state);
     await gotoGantt(page);
-    await page.locator('.filter-more').click();
-    const statusSelect = page.locator('.filter-more-popover label').filter({ hasText: 'Estado' }).locator('select');
-    await expect(statusSelect).toBeVisible();
-    // Verificar que existe la opción seleccionando el valor
-    await statusSelect.selectOption('en_progreso');
-    await expect(statusSelect).toHaveValue('en_progreso');
+    // Rediseño Fase 3: el estado ahora se selecciona desde las pills semáforo
+    // del FilterBar principal (no dentro de "Más filtros"). La pill "En progreso"
+    // se activa/desactiva con un click.
+    const pill = page.locator('.qfilter').filter({ hasText: 'En progreso' });
+    await expect(pill).toBeVisible();
+    await pill.click();
+    await expect(pill).toHaveClass(/is-on/);
   });
 });
 

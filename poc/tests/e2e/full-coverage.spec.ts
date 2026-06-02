@@ -280,101 +280,110 @@ test.describe('Toolbar — Acciones', () => {
 });
 
 test.describe('FilterBar — Completo', () => {
-  test('filtro por nombre muestra chips activos', async ({ page }) => {
+  // ---------------------------------------------------------------
+  // Rediseño Fase 3: FilterBar reordenado.
+  // Selectores nuevos: .filterbar / .fb-search input / .qfilter (pills semáforo)
+  // / .fb-chip (Tipo, Más filtros) / .fb-menu / .fb-menu-wide / .fb-toggle /
+  // .fb-clear / .fb-count.
+  // ---------------------------------------------------------------
+
+  test('filtro por nombre se persiste en el input', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoGantt(page);
-    await page.locator('.filter-search--main').fill('Tarea');
-    await expect(page.locator('.filter-chip').filter({ hasText: 'Tarea' })).toBeVisible();
+    const search = page.locator('.fb-search input');
+    await search.fill('Tarea');
+    await expect(search).toHaveValue('Tarea');
   });
-  test('todos los chips de tipo existen', async ({ page }) => {
+  test('pills de estado existen (semáforo)', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoGantt(page);
-    for (const label of ['Proyecto', 'Etapa', 'Grupo', 'Tarea', 'Hito']) {
-      await expect(page.locator('.filter-chip-btn').filter({ hasText: label })).toBeVisible();
+    for (const label of ['Todas', 'Pendiente', 'En progreso', 'Completado', 'Retrasado']) {
+      await expect(page.locator('.qfilter').filter({ hasText: label })).toBeVisible();
     }
   });
-  test('chip de tipo se activa y desactiva', async ({ page }) => {
+  test('chip de tipo se abre y permite elegir Tarea', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoGantt(page);
-    const chip = page.locator('.filter-chip-btn').filter({ hasText: 'Tarea' });
-    await chip.click();
-    await expect(chip).toHaveClass(/is-active/);
-    await chip.click();
-    await expect(chip).not.toHaveClass(/is-active/);
+    const tipoChip = page.locator('.fb-chip').filter({ hasText: /^Tipo:/ });
+    await tipoChip.click();
+    await page.locator('.fb-menu-item').filter({ hasText: 'Tarea' }).click();
+    await expect(tipoChip).toContainText('Tarea');
   });
-  test('Solo backlog toggle', async ({ page }) => {
+  test('Solo backlog vive dentro de Más filtros', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoGantt(page);
-    const btn = page.locator('.filter-chip-btn').filter({ hasText: 'Solo backlog' });
-    await btn.click();
-    await expect(btn).toHaveClass(/is-active/);
-    await btn.click();
-    await expect(btn).not.toHaveClass(/is-active/);
+    await page.locator('.fb-chip').filter({ hasText: 'Más filtros' }).click();
+    const toggle = page.locator('.fb-toggle').filter({ hasText: 'Solo backlog' });
+    await toggle.click();
+    await expect(toggle).toHaveClass(/is-on/);
+    await toggle.click();
+    await expect(toggle).not.toHaveClass(/is-on/);
   });
-  test('Backlog visible toggle existe', async ({ page }) => {
+  test('Backlog visible toggle existe dentro de Más filtros', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoGantt(page);
-    await expect(page.locator('.filter-chip-btn').filter({ hasText: 'Backlog visible' })).toBeVisible();
+    await page.locator('.fb-chip').filter({ hasText: 'Más filtros' }).click();
+    await expect(page.locator('.fb-toggle').filter({ hasText: 'Backlog visible' })).toBeVisible();
   });
-  test('Ocultar cerrados toggle', async ({ page }) => {
+  test('Mostrar cerrados toggle (semántica invertida vs viejo Ocultar)', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoGantt(page);
-    const btn = page.locator('.filter-chip-btn').filter({ hasText: 'Ocultar cerrados' });
-    await expect(btn).toHaveClass(/is-active/);
-    await btn.click();
-    await expect(btn).not.toHaveClass(/is-active/);
+    await page.locator('.fb-chip').filter({ hasText: 'Más filtros' }).click();
+    const toggle = page.locator('.fb-toggle').filter({ hasText: 'Mostrar cerrados' });
+    // Default activeOnly=true → "Mostrar cerrados" inactivo
+    await expect(toggle).not.toHaveClass(/is-on/);
+    await toggle.click();
+    await expect(toggle).toHaveClass(/is-on/);
   });
-  test('Mas filtros abre popover', async ({ page }) => {
+  test('Mas filtros abre menú', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoGantt(page);
-    await page.locator('.filter-more').click();
-    await expect(page.locator('.filter-more-popover')).toBeVisible();
+    await page.locator('.fb-chip').filter({ hasText: 'Más filtros' }).click();
+    await expect(page.locator('.fb-menu-wide')).toBeVisible();
   });
-  test('Mas filtros muestra campos de avanzados', async ({ page }) => {
+  test('Mas filtros muestra labels avanzados', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoGantt(page);
-    await page.locator('.filter-more').click();
-    await expect(page.locator('.filter-more-popover label').filter({ hasText: 'Proyecto' })).toBeVisible();
-    await expect(page.locator('.filter-more-popover label').filter({ hasText: 'Responsable' })).toBeVisible();
-    await expect(page.locator('.filter-more-popover label').filter({ hasText: 'Ejecutor' })).toBeVisible();
-    await expect(page.locator('.filter-more-popover label').filter({ hasText: 'Estado' })).toBeVisible();
-    await expect(page.locator('.filter-more-popover label').filter({ hasText: 'Desde' })).toBeVisible();
-    await expect(page.locator('.filter-more-popover label').filter({ hasText: 'Hasta' })).toBeVisible();
+    await page.locator('.fb-chip').filter({ hasText: 'Más filtros' }).click();
+    for (const label of ['Proyecto', 'Responsable', 'Ejecutor', 'Vista', 'Aplicar filtros a', 'Rango de fechas']) {
+      await expect(page.locator('.fb-menu-label').filter({ hasText: label })).toBeVisible();
+    }
   });
   test('Mas filtros se cierra con boton Cerrar', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoGantt(page);
-    await page.locator('.filter-more').click();
-    await page.locator('.filter-more-actions button').click();
-    await expect(page.locator('.filter-more-popover')).not.toBeVisible();
+    await page.locator('.fb-chip').filter({ hasText: 'Más filtros' }).click();
+    await page.locator('.fb-menu-actions button').filter({ hasText: 'Cerrar' }).click();
+    await expect(page.locator('.fb-menu-wide')).not.toBeVisible();
   });
-  test('filtro estado selecciona opcion', async ({ page }) => {
+  test('filtro estado se selecciona desde pills semáforo', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoGantt(page);
-    await page.locator('.filter-more').click();
-    const sel = page.locator('.filter-more-popover label').filter({ hasText: 'Estado' }).locator('select');
-    await sel.selectOption('completado');
-    await expect(sel).toHaveValue('completado');
+    // Rediseño: el estado vive en pills semáforo, no en select.
+    const pill = page.locator('.qfilter').filter({ hasText: 'Completado' });
+    await pill.click();
+    await expect(pill).toHaveClass(/is-on/);
   });
-  test('filtro de fechas Desde y Hasta', async ({ page }) => {
+  test('filtro de fechas Desde y Hasta en Más filtros', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoGantt(page);
-    await page.locator('.filter-more').click();
-    await page.locator('.filter-more-popover label').filter({ hasText: 'Desde' }).locator('input').fill('2026-01-01');
-    await page.locator('.filter-more-popover label').filter({ hasText: 'Hasta' }).locator('input').fill('2026-12-31');
+    await page.locator('.fb-chip').filter({ hasText: 'Más filtros' }).click();
+    await page.locator('.fb-menu-inline').filter({ hasText: 'Desde' }).locator('input').fill('2026-01-01');
+    await page.locator('.fb-menu-inline').filter({ hasText: 'Hasta' }).locator('input').fill('2026-12-31');
   });
-  test('Limpiar filtros resetea todo', async ({ page }) => {
+  test('Limpiar filtros resetea búsqueda y pills', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoGantt(page);
-    await page.locator('.filter-search--main').fill('test');
-    await page.locator('.filter-chip-btn').filter({ hasText: 'Tarea' }).click();
-    await page.locator('.clear-button').click();
-    await expect(page.locator('.filter-search--main')).toHaveValue('');
+    await page.locator('.fb-search input').fill('test');
+    await page.locator('.qfilter').filter({ hasText: 'Pendiente' }).click();
+    await page.locator('.fb-clear').click();
+    await expect(page.locator('.fb-search input')).toHaveValue('');
+    await expect(page.locator('.qfilter').filter({ hasText: 'Pendiente' })).not.toHaveClass(/is-on/);
   });
   test('contador de elementos es visible', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoGantt(page);
-    await expect(page.locator('.filter-count')).toContainText('elementos');
+    await expect(page.locator('.fb-count')).toContainText('ELEMENTOS');
   });
 });
 
@@ -571,12 +580,17 @@ test.describe('Admin Page — Completo', () => {
   test('formulario de invitacion tiene nombre y email', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoAdmin(page);
-    await expect(page.locator('.admin-page input[placeholder*="Nombre"]').or(page.locator('.admin-page label').filter({ hasText: 'Nombre' }).locator('input'))).toBeVisible({ timeout: 3000 });
+    // Rediseño Fase 9: el admin tiene dos sub-secciones (Usuarios + Equipos)
+    // y por lo tanto dos formularios. Apuntamos al primero (.assign-form).
+    const form = page.locator('.admin-page .assign-form').first();
+    await expect(form.locator('input[placeholder="Ana Torres"]')).toBeVisible({ timeout: 3000 });
+    await expect(form.locator('input[placeholder*="ana@"]')).toBeVisible();
   });
   test('tabla de usuarios tiene columnas', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoAdmin(page);
-    await expect(page.locator('.admin-table')).toBeVisible({ timeout: 5000 });
+    // Hay 2 .admin-table tras Fase 9 (usuarios y equipos). La primera es la de usuarios.
+    await expect(page.locator('.admin-table').first()).toBeVisible({ timeout: 5000 });
   });
   test('filtro de busqueda en admin', async ({ page }) => {
     await setupApi(page, freshState());
@@ -753,18 +767,26 @@ test.describe('Integracion — Flujos Completos', () => {
   test('filtro + limpiar mantiene consistencia', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoGantt(page);
-    await page.locator('.filter-chip-btn').filter({ hasText: 'Tarea' }).click();
-    await page.locator('.filter-chip-btn').filter({ hasText: 'Hito' }).click();
-    await page.locator('.clear-button').click();
-    await expect(page.locator('.filter-chip-btn').filter({ hasText: 'Tarea' })).not.toHaveClass(/is-active/);
-    await expect(page.locator('.filter-chip-btn').filter({ hasText: 'Hito' })).not.toHaveClass(/is-active/);
+    // Rediseño: estado se elige por pills; tipo por dropdown.
+    await page.locator('.qfilter').filter({ hasText: 'Pendiente' }).click();
+    await page.locator('.fb-search input').fill('foo');
+    // Esperar al debounce de búsqueda (250ms) para que onSearch se haya disparado
+    // antes de pulsar Limpiar; si no, una segunda llamada a onSearch llega tras
+    // el clear y vuelve a poner 'foo'.
+    await page.waitForTimeout(350);
+    await page.locator('.fb-clear').click();
+    await expect(page.locator('.qfilter').filter({ hasText: 'Pendiente' })).not.toHaveClass(/is-on/);
+    await expect(page.locator('.fb-search input')).toHaveValue('');
   });
   test('filtro tipo + busqueda combinados', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoGantt(page);
-    await page.locator('.filter-chip-btn').filter({ hasText: 'Tarea' }).click();
-    await page.locator('.filter-search--main').fill('Tarea A');
-    await expect(page.locator('.filter-chip')).toHaveCount(2);
+    const tipoChip = page.locator('.fb-chip').filter({ hasText: /^Tipo:/ });
+    await tipoChip.click();
+    await page.locator('.fb-menu-item').filter({ hasText: 'Tarea' }).click();
+    await page.locator('.fb-search input').fill('Tarea A');
+    await expect(page.locator('.fb-search input')).toHaveValue('Tarea A');
+    await expect(tipoChip).toContainText('Tarea');
   });
   test('pantalla completa oculta toolbar y filtros', async ({ page }) => {
     await setupApi(page, freshState());
@@ -839,8 +861,11 @@ test.describe('Edge Cases', () => {
   test('cambiar filtros rapidamente no rompe UI', async ({ page }) => {
     await setupApi(page, freshState());
     await gotoGantt(page);
+    // Rediseño: tipo es un dropdown exclusivo. Cambiamos entre opciones varias veces.
+    const tipoChip = page.locator('.fb-chip').filter({ hasText: /^Tipo:/ });
     for (const label of ['Proyecto', 'Etapa', 'Grupo', 'Tarea', 'Hito']) {
-      await page.locator('.filter-chip-btn').filter({ hasText: label }).click();
+      await tipoChip.click();
+      await page.locator('.fb-menu-item').filter({ hasText: new RegExp(`^${label}$`) }).click();
     }
     await expect(page.locator('.app-shell')).toBeVisible();
   });
