@@ -279,3 +279,71 @@ Carga inicial: ~310 kB JS + 168 kB CSS. DHTMLX se carga bajo demanda al entrar a
 4. **E2E profundo** — Playwright con DHTMLX real (arrastrar, crear dependencias, mover tareas en el Gantt).
 5. **Iconos PWA** — generar `icon-192.png` y `icon-512.png` reales.
 6. **CI/CD** — pipeline en `.github/workflows/ci.yml` ya creado; la imagen Docker es genérica y se configura con variables runtime `PUBLIC_*`.
+
+---
+
+## Rediseño 2026-06-02 (Fases 1–9)
+
+Aplicación completa del handoff del equipo de diseño (`docs/certificacion-rediseno-2026-06-02.md`):
+
+### Frontend nuevo (`src/styles/` y `src/components/ui/`)
+- **`tokens.css`** — design tokens en oklch, light + dark via `[data-theme]`, densidad via `[data-density]`. Aliases backward-compat (`--bg`, `--accent`, …) para no romper componentes legacy.
+- **`primitives.css`** + `src/components/ui/` — 7 primitivos: `Button`, `StatusPill`, `Avatar/AvatarStack`, `Chip`, `Seg`, `Field`, `ProgressMini`.
+- **`gantt-skin.css`** — skin de DHTMLX: barras por estado (`t-done|t-prog|t-late|t-pend`), summary bars en gradiente índigo, etapa/grupo dashed, milestone diamante, today line, weekends, dependencias.
+- **`filterbar.css`** — FilterBar reordenado (handoff §5.5): Buscar → Estado pills semáforo → Tipo dropdown → Más filtros.
+- **`detail-skin.css`** — drawer con pin + tabs subrayadas + dropdown "Más ▾" para Presupuesto/Adjuntos.
+- **`chrome-skin.css`** — TopBar, KPI strip, Toolbar, scale-switch como segmented control, density picker.
+- **`modal-skin.css`** — CreateDialog y ShortcutsModal con backdrop blur y header eyebrow.
+- **`rails-skin.css`** — BacklogPanel y DetailRail (rails laterales colapsables).
+- **`mobile-skin.css`** — vista "Tu agenda" del ejecutor con cards ricas + hit targets ≥ 44 px.
+- **`admin-skin.css`** — `/admin` con secciones Usuarios + Equipos, tabla + form de invitar/crear.
+
+### Capa de datos / lógica nueva
+- **`src/lib/status.ts`** — `computeNodeStatus`, `STATUS_LABELS`, `statusToBarClass` (compartidos).
+- **`src/lib/grid-columns.ts`** — columnas configurables del grid del Gantt con persistencia.
+- **`src/lib/grouping.ts`** — `applyGroupBy` con cabeceras sintéticas (`__resp__*` / `__team__*`) para agrupación por responsable o equipo.
+- **`GanttPage` state nuevo:** `matchScope` (`all|projects`), `groupBy` (`none|responsible|team`), `gridColumns`, `detailPinned`, `theme.density`. Todo persistido (`localStorage`) + sincronizado con URL params.
+- **`FilterBar` reescrito** con preservación de ancestros: filtro en cascada mantiene la jerarquía para conservar contexto (handoff §5.3).
+
+### Backend nuevo
+- **`supabase/migrations/00011_teams.sql`** — tabla `teams` (id, name, color, lead_id, is_active) + columna `projects.team_id` + índices + RLS espejando `project_types`.
+- **`supabase/functions/api-teams/`** — GET público (autenticado) de equipos activos.
+- **`supabase/functions/api-admin-teams/`** — GET / POST admin para gestión.
+- **`supabase/functions/api-admin-team/`** — PATCH del detalle (rename, color, lead, is_active).
+- **`api-projects/`** modificada — el join `teams(id,name,color,lead_id)` viene en la respuesta + POST acepta `team_id`.
+
+### UI admin de equipos
+- `/admin` ahora tiene dos sub-secciones: **Usuarios** y **Equipos**.
+- Form de "Crear equipo" con name + color picker + select de lead opcional.
+- Tabla con swatch de color, lead, estado pill, toggle Activar/Desactivar.
+- **CreateDialog** del Gantt: nuevo campo "Equipo (opcional)" en mode='project' con dropdown de equipos activos.
+
+### Accesibilidad
+- **Auditoría WCAG 2.1 AA con axe-core** ejecutada sobre 6 escenas (login, portfolio L/D, admin L/D, mobile). **0 violaciones**.
+- `tests/uat-screenshots/a11y-audit.spec.ts` reproducible en CI.
+- Fixes aplicados: `--user-chip` y CTAs accent → `--indigo-700` (4.5:1+ en ambos temas), `--text-faint` → `--text-muted` en headers, `aria-label` al select de admin, `tabIndex` en regiones scrollables.
+
+### Decisiones documentadas
+- **Tipografía**: mantenemos Inter (ya self-hosted, mismo género que IBM Plex Sans). Token `--font-sans` expuesto para swap futuro.
+- **Detail panel**: 7 tabs en lugar de 5 — Presupuesto y Adjuntos viven en dropdown "Más ▾".
+
+### Bundle post-rediseño
+
+| Chunk | Tamaño (min+gzip) | Delta vs pre |
+|---|---|---|
+| `index.css` | 238 kB + 67 kB gzip | +48 kB (+16 kB gz) por skins nuevos |
+| `index.js` | 315 kB + 95 kB gzip | +5 kB (matchScope, groupBy, density) |
+| `GanttCanvas` | 618 kB + 167 kB gzip | +9 kB (skin + columnas configurables) |
+| `GanttPage` | 68 kB + 18 kB gzip | +35 kB (FilterBar nuevo, lógica matchScope/groupBy) |
+| `AdminPage` | 4.7 kB + 1.8 kB gzip | +1.3 kB (sección equipos) |
+
+### Cómo regenerar las capturas del rediseño
+
+```bash
+cd poc
+PUBLIC_BASE_PATH=/abax-gantt/ npm run dev -- --host 127.0.0.1 --port 5173 &
+SCREENSHOT_DIR=/tmp/design-pack \
+  UAT_BASE_URL=http://127.0.0.1:5173/abax-gantt \
+  PLAYWRIGHT_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome \
+  npx playwright test --config=playwright.uat.config.ts design-pack.spec.ts
+```
