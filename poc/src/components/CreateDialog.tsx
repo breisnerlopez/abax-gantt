@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { NodeType, WbsNode } from '../lib/types';
+import type { NodeType, Team, WbsNode } from '../lib/types';
 import { normalizeNodeDates, validateNodeInput } from '../lib/validation';
 
 type DialogMode = 'project' | 'child';
@@ -8,9 +8,12 @@ interface CreateDialogProps {
   mode: DialogMode | null;
   parent: WbsNode | null;
   onClose: () => void;
-  onCreateProject: (name: string) => Promise<void>;
+  /** Acepta team_id opcional para asignar el proyecto a un equipo al crearlo (Fase 9). */
+  onCreateProject: (input: { name: string; team_id?: string | null }) => Promise<void>;
   onCreateChild: (input: { name: string; type: NodeType; start_date: string | null; end_date: string | null }) => Promise<void>;
   canEditStructure: boolean;
+  /** Equipos activos disponibles para asignar (mode='project'). */
+  teams?: Team[];
 }
 
 const childTypes: { value: NodeType; label: string }[] = [
@@ -20,12 +23,13 @@ const childTypes: { value: NodeType; label: string }[] = [
   { value: 'milestone', label: 'Hito' },
 ];
 
-export function CreateDialog({ mode, parent, onClose, onCreateProject, onCreateChild, canEditStructure }: CreateDialogProps) {
+export function CreateDialog({ mode, parent, onClose, onCreateProject, onCreateChild, canEditStructure, teams = [] }: CreateDialogProps) {
   const [name, setName] = useState('');
   const [type, setType] = useState<NodeType>(() => defaultChildType(parent));
   const [scheduled, setScheduled] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [teamId, setTeamId] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // Guard contra double-submit (doble click/Enter antes de que React aplique `disabled`).
@@ -51,7 +55,7 @@ export function CreateDialog({ mode, parent, onClose, onCreateProject, onCreateC
     setError(null);
     try {
       if (isProject) {
-        await onCreateProject(cleanName);
+        await onCreateProject({ name: cleanName, team_id: teamId || null });
       } else {
         await onCreateChild({
           name: cleanName,
@@ -84,6 +88,25 @@ export function CreateDialog({ mode, parent, onClose, onCreateProject, onCreateC
           <span>Nombre</span>
           <input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder={isProject ? 'Ej. Torre Polaris' : 'Ej. Diseño estructural'} />
         </label>
+
+        {isProject && (
+          <label className="edit-field">
+            <span>Equipo (opcional)</span>
+            <select
+              aria-label="Equipo del proyecto"
+              value={teamId}
+              onChange={(event) => setTeamId(event.target.value)}
+            >
+              <option value="">Sin equipo</option>
+              {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            {teams.length === 0 && (
+              <small style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-11)' }}>
+                Crea equipos desde Admin para poder agruparlos en el portafolio.
+              </small>
+            )}
+          </label>
+        )}
 
         {!isProject && (
           <>

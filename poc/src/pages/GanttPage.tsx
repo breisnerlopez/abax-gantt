@@ -13,6 +13,9 @@ import { Toolbar } from '../components/Toolbar';
 import { errorMessage, useToast } from '../lib/toast';
 import { usePortfolio } from '../hooks/usePortfolio';
 import { addAssignee, apiUrl, createDependency, createProject, createWbsNode, deleteDependency, listAssignees, moveWbsNode, removeAssignee, reportProgress, scheduleWbsNode, unscheduleWbsNode, updateWbsNode } from '../lib/api';
+import { computeNodeStatus } from '../lib/status';
+import { applyGroupBy, type GroupBy } from '../lib/grouping';
+import { DEFAULT_GRID_COLUMNS, loadGridColumns, saveGridColumns, type GridColumnsConfig } from '../lib/grid-columns';
 import type { AuthSession, DependencyType, NodeType, TaskAssignee, WbsNode } from '../lib/types';
 
 const FILTERS_KEY = 'abax.filters';
@@ -81,6 +84,48 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
   const [dateFrom, setDateFrom] = useState(() => searchParams.get('date_from') ?? readFilter('date_from'));
   const [dateTo, setDateTo] = useState(() => searchParams.get('date_to') ?? readFilter('date_to'));
   const [activeOnly, setActiveOnly] = useState(() => searchParams.get('active_only') !== 'false');
+  // Rediseño Fase 4 — columnas configurables de la grilla (handoff §5.4).
+  const [gridColumns, setGridColumns] = useState<GridColumnsConfig>(() => loadGridColumns());
+  const updateGridColumn = useCallback((key: keyof GridColumnsConfig, value: boolean) => {
+    setGridColumns((current) => {
+      const next = { ...current, [key]: value };
+      saveGridColumns(next);
+      return next;
+    });
+  }, []);
+  const resetGridColumns = useCallback(() => {
+    setGridColumns(DEFAULT_GRID_COLUMNS);
+    saveGridColumns(DEFAULT_GRID_COLUMNS);
+  }, []);
+
+  // Rediseño Fase 4 — detail panel "pinned" vs "floating".
+  // Pinned (default): el panel toma su propio espacio a la derecha del workspace.
+  // Floating: el panel flota sobre el Gantt (overlay). Se elige desde el icono pin.
+  const [detailPinned, setDetailPinned] = useState<boolean>(() => {
+    try { return window.localStorage.getItem('abax.detail.pinned') !== '0'; } catch { return true; }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem('abax.detail.pinned', detailPinned ? '1' : '0'); } catch { /* ignore */ }
+  }, [detailPinned]);
+  const toggleDetailPinned = useCallback(() => setDetailPinned((v) => !v), []);
+
+  // Rediseño Fase 3 — matchScope (handoff §5.3): cómo aplicar los filtros.
+  //   'all'       → cascada: poda en profundidad preservando ancestros (default).
+  //   'projects'  → solo proyectos: el filtro evalúa el proyecto; si coincide,
+  //                 se revela su subárbol completo intacto.
+  const [matchScope, setMatchScope] = useState<'all' | 'projects'>(() => {
+    const raw = searchParams.get('match') || readFilter('match');
+    return raw === 'projects' ? 'projects' : 'all';
+  });
+
+  // Rediseño Fase 7 — agrupación (handoff §5.2). El backend aún no tiene
+  // `teams`, así que solo exponemos 'responsible'. Inserta cabeceras
+  // sintéticas (id con prefijo "__resp__") encima de los proyectos.
+  const [groupBy, setGroupByState] = useState<GroupBy>(() => {
+    const raw = searchParams.get('group') || readFilter('group');
+    if (raw === 'responsible' || raw === 'team') return raw;
+    return 'none';
+  });
   const [todaySignal, setTodaySignal] = useState(0);
   const [ganttScale, setGanttScale] = useState<'Día' | 'Semana' | 'Mes' | 'Año'>(() => readScale(searchParams));
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -90,8 +135,8 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
   }, [ganttScale]);
 
   useEffect(() => {
-    saveFilters({ q: searchTerm, type: typeFilter ?? '', unscheduled: showUnscheduled ? '1' : '', my: myTasks ? '1' : '', focus: focusProjectId ?? '', project_id: projectFilter ?? '', responsible_id: responsibleFilter ?? '', assignee_id: assigneeFilter ?? '', status: statusFilter ?? '', date_from: dateFrom, date_to: dateTo, active_only: activeOnly ? '1' : '', backlog_gantt: showBacklogInGantt ? '1' : '' });
-  }, [searchTerm, typeFilter, showUnscheduled, myTasks, focusProjectId, projectFilter, responsibleFilter, assigneeFilter, statusFilter, dateFrom, dateTo, activeOnly, showBacklogInGantt]);
+    saveFilters({ q: searchTerm, type: typeFilter ?? '', unscheduled: showUnscheduled ? '1' : '', my: myTasks ? '1' : '', focus: focusProjectId ?? '', project_id: projectFilter ?? '', responsible_id: responsibleFilter ?? '', assignee_id: assigneeFilter ?? '', status: statusFilter ?? '', date_from: dateFrom, date_to: dateTo, active_only: activeOnly ? '1' : '', backlog_gantt: showBacklogInGantt ? '1' : '', match: matchScope === 'projects' ? 'projects' : '', group: groupBy === 'none' ? '' : groupBy });
+  }, [searchTerm, typeFilter, showUnscheduled, myTasks, focusProjectId, projectFilter, responsibleFilter, assigneeFilter, statusFilter, dateFrom, dateTo, activeOnly, showBacklogInGantt, matchScope, groupBy]);
 
   // Panel de detalle on-demand: el usuario lo abre/cierra explícitamente.
   // Default cerrado para mantener el Gantt con máximo ancho.
@@ -121,18 +166,18 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
     try { window.localStorage.setItem('abax.mobile.gantt', forceGantt ? '1' : '0'); } catch { /* ignore */ }
   }, []);
 
+  // Rediseño Fase 3: los filtros "ligeros" (search/status/type/responsable/ejecutor)
+  // se hacen 100% client-side para que matchScope pueda preservar ancestros del
+  // árbol cuando hace cascada. Sólo van al servidor los que reducen el dataset
+  // de partida (alcance del proyecto, rango de fechas, scope personal).
   const portfolioFilters = useMemo(() => ({
     project_id: focusProjectId ?? projectFilter ?? null,
-    search: searchTerm || null,
     my_tasks: myTasks || undefined,
     unscheduled: showUnscheduled,
-    responsible_id: responsibleFilter ?? null,
-    assignee_id: assigneeFilter ?? null,
-    status: statusFilter ?? null,
     date_from: dateFrom || null,
     date_to: dateTo || null,
     active_only: activeOnly || undefined,
-  }), [focusProjectId, projectFilter, searchTerm, myTasks, showUnscheduled, responsibleFilter, assigneeFilter, statusFilter, dateFrom, dateTo, activeOnly]);
+  }), [focusProjectId, projectFilter, myTasks, showUnscheduled, dateFrom, dateTo, activeOnly]);
 
   const portfolio = usePortfolio(token, portfolioFilters);
 
@@ -321,22 +366,96 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
     return null;
   }, [portfolioUsers, sessionEmail, sessionName]);
 
+  /**
+   * Rediseño Fase 3 — capa de filtrado con preservación de ancestros (handoff §5.3).
+   *
+   * - Scope personal (`myTasks`) reduce el pool ANTES de filtrar.
+   * - "Tipo" es exclusivo y aplana el resultado (handoff §5.5).
+   * - Para el resto de filtros (search, status, responsable, ejecutor):
+   *   · matchScope="all" (default) → cascada: nodo se conserva si coincide
+   *     O si algún descendiente coincide. Así el árbol mantiene el contexto.
+   *   · matchScope="projects" → solo se evalúa la raíz (proyecto). Si coincide,
+   *     el subárbol entero se muestra intacto. Búsqueda tolerante: el match
+   *     puede estar en cualquier nodo del árbol y aún así se revela el proyecto.
+   */
   const filteredNodes = useMemo(() => {
-    let nodes = portfolio.data?.nodes ?? [];
-    if (focusProjectId) {
-      nodes = nodes.filter((n) => n.project_id === focusProjectId);
-    }
+    const allNodes = portfolio.data?.nodes ?? [];
+    let pool = focusProjectId ? allNodes.filter((n) => n.project_id === focusProjectId) : allNodes;
     if (myTasks && currentUserId) {
-      nodes = nodes.filter((n) => n.responsible_id === currentUserId || n.task_assignees?.some((a) => a.user_id === currentUserId));
+      pool = pool.filter((n) => n.responsible_id === currentUserId || n.task_assignees?.some((a) => a.user_id === currentUserId));
     }
-    if (searchTerm) {
-      const lower = searchTerm.toLowerCase();
-      nodes = nodes.filter((n) => n.name.toLowerCase().includes(lower) || (n.description ?? '').toLowerCase().includes(lower));
+    if (showUnscheduled) {
+      pool = pool.filter((n) => n.is_unscheduled);
     }
-    if (typeFilter) nodes = nodes.filter((n) => n.type === typeFilter);
-    if (showUnscheduled) nodes = nodes.filter((n) => n.is_unscheduled);
-    return nodes;
-  }, [portfolio.data?.nodes, searchTerm, typeFilter, showUnscheduled, myTasks, focusProjectId, currentUserId]);
+
+    // "Tipo" es exclusivo y plano — no entra en la lógica de matchScope.
+    if (typeFilter) {
+      return pool.filter((n) => n.type === typeFilter);
+    }
+
+    const q = searchTerm.trim().toLowerCase();
+    const hasNameFilter = q.length > 0;
+    const hasStatusFilter = !!statusFilter;
+    const hasRespFilter = !!responsibleFilter;
+    const hasAssigneeFilter = !!assigneeFilter;
+    const anyFilter = hasNameFilter || hasStatusFilter || hasRespFilter || hasAssigneeFilter;
+    if (!anyFilter) return pool;
+
+    const nodeMatches = (n: WbsNode): boolean => {
+      if (hasNameFilter) {
+        const inName = n.name.toLowerCase().includes(q);
+        const inDesc = (n.description ?? '').toLowerCase().includes(q);
+        if (!inName && !inDesc) return false;
+      }
+      if (hasStatusFilter && computeNodeStatus(n) !== statusFilter) return false;
+      if (hasRespFilter && n.responsible_id !== responsibleFilter) return false;
+      if (hasAssigneeFilter && !n.task_assignees?.some((a) => a.user_id === assigneeFilter)) return false;
+      return true;
+    };
+
+    const childMap = new Map<string | null, WbsNode[]>();
+    pool.forEach((n) => {
+      const k = n.parent_id;
+      const bucket = childMap.get(k);
+      if (bucket) bucket.push(n);
+      else childMap.set(k, [n]);
+    });
+    const roots = childMap.get(null) ?? [];
+    const keptSet = new Set<string>();
+
+    if (matchScope === 'projects') {
+      const nameInTree = (n: WbsNode): boolean => {
+        if (!hasNameFilter) return true;
+        if (n.name.toLowerCase().includes(q) || (n.description ?? '').toLowerCase().includes(q)) return true;
+        return (childMap.get(n.id) ?? []).some(nameInTree);
+      };
+      const addSubtree = (n: WbsNode) => {
+        keptSet.add(n.id);
+        (childMap.get(n.id) ?? []).forEach(addSubtree);
+      };
+      roots.forEach((root) => {
+        const nameOk = nameInTree(root);
+        const statusOk = !hasStatusFilter || computeNodeStatus(root) === statusFilter;
+        const respOk = !hasRespFilter || root.responsible_id === responsibleFilter;
+        const asigOk = !hasAssigneeFilter || (root.task_assignees ?? []).some((a) => a.user_id === assigneeFilter);
+        if (nameOk && statusOk && respOk && asigOk) addSubtree(root);
+      });
+    } else {
+      // Cascada: nodo se conserva si coincide O si algún descendiente lo hace.
+      const visit = (n: WbsNode): boolean => {
+        let anyChild = false;
+        (childMap.get(n.id) ?? []).forEach((c) => { if (visit(c)) anyChild = true; });
+        if (nodeMatches(n) || anyChild) {
+          keptSet.add(n.id);
+          return true;
+        }
+        return false;
+      };
+      roots.forEach(visit);
+    }
+
+    return pool.filter((n) => keptSet.has(n.id));
+  }, [portfolio.data?.nodes, searchTerm, typeFilter, showUnscheduled, myTasks, focusProjectId, currentUserId, statusFilter, responsibleFilter, assigneeFilter, matchScope]);
 
   const filteredBacklog = useMemo(() => {
     let backlog = portfolio.data?.backlog ?? [];
@@ -349,15 +468,29 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
       backlog = backlog.filter((n) => n.name.toLowerCase().includes(lower));
     }
     if (typeFilter) backlog = backlog.filter((n) => n.type === typeFilter);
+    if (statusFilter) backlog = backlog.filter((n) => computeNodeStatus(n) === statusFilter);
+    if (responsibleFilter) backlog = backlog.filter((n) => n.responsible_id === responsibleFilter);
+    if (assigneeFilter) backlog = backlog.filter((n) => n.task_assignees?.some((a) => a.user_id === assigneeFilter));
     return backlog;
-  }, [portfolio.data?.backlog, searchTerm, typeFilter, myTasks, focusProjectId, currentUserId]);
+  }, [portfolio.data?.backlog, searchTerm, typeFilter, myTasks, focusProjectId, currentUserId, statusFilter, responsibleFilter, assigneeFilter]);
+
+  // Rediseño Fase 7: aplica agrupación (cabeceras sintéticas) sobre los nodos
+  // ya filtrados. Sólo afecta al portafolio (≥ 2 proyectos con responsables
+  // distintos); en otros casos devuelve los nodos sin tocar.
+  const groupedNodes = useMemo(() => {
+    return applyGroupBy(filteredNodes, groupBy, {
+      users: portfolio.data?.users ?? [],
+      teams: portfolio.data?.teams ?? [],
+      projects: portfolio.data?.projects ?? [],
+    });
+  }, [filteredNodes, groupBy, portfolio.data?.users, portfolio.data?.teams, portfolio.data?.projects]);
 
   const ganttNodes = useMemo(() => {
-    if (!showBacklogInGantt) return filteredNodes;
+    if (!showBacklogInGantt) return groupedNodes;
     const today = new Date().toISOString().slice(0, 10);
     const byId = new Map<string, WbsNode>();
     // Usamos también los nodos del backlog para poder resolver padres que aún estén sin fechas.
-    filteredNodes.forEach((n) => byId.set(n.id, n));
+    groupedNodes.forEach((n) => byId.set(n.id, n));
     filteredBacklog.forEach((n) => byId.set(n.id, n));
 
     // Si dibujamos backlog siempre en "hoy", puede quedar fuera del rango visible del
@@ -376,8 +509,8 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
         _from_backlog: true as boolean,
       };
     });
-    return [...filteredNodes, ...backlogAsGantt];
-  }, [filteredNodes, filteredBacklog, showBacklogInGantt]);
+    return [...groupedNodes, ...backlogAsGantt];
+  }, [groupedNodes, filteredBacklog, showBacklogInGantt]);
 
   const syncUrl = useCallback((params: Record<string, string>) => {
     const next = new URLSearchParams(searchParams);
@@ -455,9 +588,9 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
   if (!token) return <Navigate to="/login" replace />;
   const userName = session?.userName ?? 'Usuario';
 
-  const handleCreateProject = async (name: string) => {
+  const handleCreateProject = async (input: { name: string; team_id?: string | null }) => {
     try {
-      const created = await createProject(token, name);
+      const created = await createProject(token, input);
       const data = await portfolio.refetch();
       const rootNodeId = created.root_node?.id ?? (created as { root_node_id?: string }).root_node_id;
       const fromPortfolio = rootNodeId ? data?.nodes.find((node) => node.id === rootNodeId) : undefined;
@@ -576,6 +709,8 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
         onDateTo={(d) => { setDateTo(d); syncUrl({ date_to: d }); }}
         activeOnly={activeOnly}
         onActiveOnly={(v) => { setActiveOnly(v); syncUrl({ active_only: v ? '' : 'false' }); }}
+        matchScope={matchScope}
+        onMatchScope={(m) => { setMatchScope(m); syncUrl({ match: m === 'projects' ? 'projects' : '' }); }}
         totalVisible={filteredNodes.length + filteredBacklog.length}
         hasActiveFilters={hasActiveFilters}
         onClear={() => {
@@ -583,8 +718,11 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
           setShowBacklogInGantt(true);
           setFocusProjectId(null); setProjectFilter(null); setResponsibleFilter(null);
           setAssigneeFilter(null); setStatusFilter(null); setDateFrom(''); setDateTo(''); setActiveOnly(true);
+          setMatchScope('all');
+          setGroupByState('none');
           clearAllLocalState();
-          syncUrl({ q: '', type: '', unscheduled: '', my: '', focus: '', project_id: '', responsible_id: '', assignee_id: '', status: '', date_from: '', date_to: '', backlog_gantt: '' });
+          syncUrl({ q: '', type: '', unscheduled: '', my: '', focus: '', project_id: '', responsible_id: '', assignee_id: '', status: '', date_from: '', date_to: '', backlog_gantt: '', match: '', group: '' });
+          setGroupByState('none');
         }}
         users={portfolio.data?.users ?? []}
       />
@@ -613,6 +751,12 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
         }}
         isFullscreen={isFullscreen}
         onToggleFullscreen={() => setIsFullscreen((v) => !v)}
+        gridColumns={gridColumns}
+        onToggleGridColumn={updateGridColumn}
+        onResetGridColumns={resetGridColumns}
+        groupBy={groupBy}
+        onGroupByChange={(g) => { setGroupByState(g); syncUrl({ group: g === 'none' ? '' : g }); }}
+        teamsAvailable={(portfolio.data?.teams?.length ?? 0) > 0}
       />
       </>
       )}
@@ -684,6 +828,8 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
                 todaySignal={todaySignal}
                 scale={ganttScale}
                 onMoveComplete={() => notify({ tone: 'success', title: 'Movimiento guardado' })}
+                selectedNodeId={selectedNode?.id ?? null}
+                visibleColumns={gridColumns}
               />
               </ErrorBoundary>
             </Suspense>
@@ -706,6 +852,8 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
               canEditStructure={canEditStructure}
               canReportProgress={canReportProgress}
               onClose={() => setDetailVisible(false)}
+              pinned={detailPinned}
+              onTogglePinned={toggleDetailPinned}
             />
           </ErrorBoundary>
         ) : (
@@ -722,6 +870,7 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
         onCreateProject={handleCreateProject}
         onCreateChild={handleCreateChild}
         canEditStructure={canEditStructure}
+        teams={portfolio.data?.teams?.filter((t) => t.is_active !== false) ?? []}
       />
     </AppShell>
   );

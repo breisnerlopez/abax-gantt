@@ -1,0 +1,421 @@
+/* ============================================================
+   ABAX Gantt — Chrome (Fase 6 del rediseño)
+   Reskin de:
+   - .topbar (cabecera de la app)
+   - .kpi-strip / .kpi-pill / .kpi-widget (franja de métricas)
+   - .toolbar (acciones del Gantt + scale-switch)
+
+   Mantiene la API de clases existente — sólo reestiliza. Los
+   componentes (AppShell, Toolbar) no cambian su estructura HTML.
+   ============================================================ */
+
+/* ===================== TOPBAR ===================== */
+.topbar {
+  height: 52px;
+  gap: var(--sp-5);
+  padding: 0 var(--sp-6);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+}
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.brand-mark {
+  width: 28px; height: 28px;
+  border-radius: var(--r-md);
+  background: linear-gradient(150deg, var(--indigo-500), var(--indigo-700));
+  color: var(--text-on-accent);
+  font-size: var(--fs-13);
+  font-weight: var(--fw-bold);
+  display: grid; place-items: center;
+}
+.brand-lockup strong {
+  font-size: var(--fs-15);
+  font-weight: var(--fw-bold);
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+}
+.workspace-crumb {
+  padding-left: var(--sp-5);
+  margin-left: var(--sp-2);
+  border-left: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--fs-13);
+}
+.workspace-crumb b {
+  color: var(--text-strong);
+  font-weight: var(--fw-semibold);
+}
+
+/* Search global */
+.global-search {
+  position: relative;
+  width: min(280px, 26vw);
+  margin-left: auto;
+}
+.global-search input {
+  width: 100%;
+  height: 32px;
+  padding: 0 46px 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-subtle);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-13);
+  outline: none;
+  transition: border-color .12s, box-shadow .12s, background .12s;
+}
+.global-search input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  background: var(--bg-surface);
+}
+.global-search input::placeholder { color: var(--text-faint); }
+.global-search kbd {
+  position: absolute;
+  top: 50%; right: var(--sp-3);
+  transform: translateY(-50%);
+  padding: 1px 6px;
+  border-radius: var(--r-xs);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+}
+
+/* Iconos del topbar (theme, ?, panel) — antes .theme-toggle */
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 34px; height: 34px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 15px;
+  cursor: pointer;
+  transition: background-color .12s, color .12s, border-color .12s;
+}
+.theme-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-strong);
+}
+.theme-toggle:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.theme-toggle--active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+/* Ghost buttons (Admin, Salir) */
+.ghost-button {
+  height: 30px;
+  padding: 0 var(--sp-4);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-13);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  transition: background-color .12s, color .12s;
+}
+.ghost-button:hover {
+  background: var(--bg-hover);
+  color: var(--text-strong);
+}
+
+/* Chip de usuario */
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  height: 34px;
+  padding: 0 var(--sp-4) 0 var(--sp-3);
+  margin-left: var(--sp-2);
+  border-left: 1px solid var(--border);
+}
+.user-chip span {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  /* AA: fijamos --indigo-700 (L≈0.478) en ambos temas → 5.5:1 con texto on-accent.
+     En dark theme --accent-hover apunta a --indigo-400 (claro) y no daba contraste. */
+  background: var(--indigo-700);
+  color: var(--text-on-accent);
+  font-size: var(--fs-11);
+  font-weight: var(--fw-semibold);
+  border: 1.5px solid var(--bg-surface);
+}
+.user-chip b {
+  font-size: var(--fs-13);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+}
+
+/* ===================== KPI STRIP ===================== */
+.kpi-strip {
+  min-height: 38px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+}
+.kpi-strip--expanded { min-height: 84px; }
+
+.kpi-summary {
+  padding: 0 var(--sp-6);
+  gap: var(--sp-2);
+}
+.kpi-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  font-size: var(--fs-12);
+  color: var(--text-faint);
+}
+.kpi-pill em {
+  font-style: normal;
+  font-weight: var(--fw-medium);
+  /* AA: bumped from --text-faint a --text-muted para alcanzar 4.5:1 sobre --bg-surface */
+  color: var(--text-muted);
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+  text-transform: none;
+}
+.kpi-pill strong {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+  font-size: var(--fs-13);
+}
+.kpi-pill--blue strong   { color: var(--c-prog-text); }
+.kpi-pill--green strong  { color: var(--c-done-text); }
+.kpi-pill--violet strong { color: var(--accent-text); }
+.kpi-pill--danger strong { color: var(--c-late-text); }
+/* AA: --c-milestone (L=0.730) no llega a 4.5:1 sobre blanco. Bajamos la L. */
+.kpi-pill--amber strong  { color: oklch(0.510 0.150 70); }
+[data-theme="dark"] .kpi-pill--amber strong { color: oklch(0.800 0.150 70); }
+.kpi-sep { margin: 0 var(--sp-3); color: var(--border-strong); }
+
+.kpi-toggle {
+  position: absolute;
+  top: var(--sp-3); right: var(--sp-4);
+  width: 24px; height: 24px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 11px;
+  display: grid; place-items: center;
+  cursor: pointer;
+}
+.kpi-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-strong);
+}
+
+.kpi-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.kpi-widget {
+  padding: var(--sp-5) var(--sp-6);
+  border-right: 1px solid var(--border-soft);
+}
+.kpi-widget:last-child { border-right: 0; }
+.kpi-widget span {
+  display: block;
+  font-size: var(--fs-11);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.kpi-widget div { gap: var(--sp-3); margin-top: var(--sp-2); }
+.kpi-widget strong {
+  font-size: var(--fs-22);
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+.kpi-widget em {
+  font-size: var(--fs-12);
+  color: var(--text-muted);
+  font-style: normal;
+}
+.kpi-widget--blue strong   { color: var(--c-prog-text); }
+.kpi-widget--green strong  { color: var(--c-done-text); }
+.kpi-widget--violet strong { color: var(--accent-text); }
+.kpi-widget--danger strong { color: var(--c-late-text); }
+.kpi-widget--amber strong  { color: oklch(0.510 0.150 70); }
+[data-theme="dark"] .kpi-widget--amber strong { color: oklch(0.800 0.150 70); }
+.kpi-widget--blue span   { color: var(--c-prog-text); }
+.kpi-widget--green span  { color: var(--c-done-text); }
+.kpi-widget--violet span { color: var(--accent-text); }
+.kpi-widget--danger span { color: var(--c-late-text); }
+.kpi-widget--amber span  { color: var(--c-milestone); }
+
+/* ===================== TOOLBAR ===================== */
+.toolbar {
+  height: 48px;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-6);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Botones del toolbar (incluye los heredados de .filter-bar) — reskin a .btn */
+.toolbar > button,
+.toolbar .export-menu > button,
+.toolbar .scale-switch button {
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: var(--fs-13);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .12s, border-color .12s, color .12s, box-shadow .12s;
+}
+.toolbar > button:hover:not(:disabled),
+.toolbar .export-menu > button:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+.toolbar > button:focus-visible,
+.toolbar .export-menu > button:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.toolbar > button:disabled {
+  background: var(--bg-subtle);
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+.toolbar .primary-button {
+  /* AA: --indigo-700 garantiza 5.5:1 con texto on-accent en ambos temas (en dark,
+     --accent vale --indigo-500 que no contrasta). */
+  background: var(--indigo-700);
+  border-color: var(--indigo-700);
+  color: var(--text-on-accent);
+  font-weight: var(--fw-semibold);
+  box-shadow: var(--shadow-xs);
+}
+.toolbar .primary-button:hover:not(:disabled) {
+  background: var(--indigo-800);
+  border-color: var(--indigo-800);
+}
+.toolbar .primary-button kbd {
+  background: oklch(0 0 0 / 0.22);
+  border-color: oklch(0 0 0 / 0.28);
+  color: var(--text-on-accent);
+}
+
+/* Scale switch (Día / Semana / Mes / Año) — segmented control */
+.scale-switch {
+  display: inline-flex;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 2px;
+  gap: 2px;
+  height: 30px;
+}
+.scale-switch button {
+  height: 24px;
+  padding: 0 var(--sp-4);
+  border: 0;
+  background: transparent;
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: var(--fs-13);
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color .12s, color .12s, box-shadow .12s;
+}
+.scale-switch button:hover { color: var(--text-strong); }
+.scale-switch .primary-button {
+  background: var(--bg-surface);
+  border: 0;
+  color: var(--accent-text);
+  font-weight: var(--fw-semibold);
+  box-shadow: var(--shadow-xs);
+  height: 24px;
+}
+.scale-switch .primary-button kbd { display: none; }
+
+.divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 var(--sp-2);
+}
+
+.toolbar-spacer { flex: 1; }
+
+/* Export menu */
+.export-menu { position: relative; }
+.export-menu-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 200px;
+  padding: var(--sp-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.export-menu-popover button {
+  height: 32px;
+  padding: 0 var(--sp-4);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-strong);
+  font: inherit;
+  font-size: var(--fs-13);
+  text-align: left;
+  cursor: pointer;
+}
+.export-menu-popover button:hover { background: var(--bg-hover); }
+
+/* ===================== DENSITY PICKER ===================== */
+.density-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-right: var(--sp-2);
+}
+.density-picker > span {
+  font-size: var(--fs-11);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.density-picker .seg { height: 28px; }
+.density-picker .seg button { height: 22px; padding: 0 var(--sp-3); font-size: var(--fs-12); }

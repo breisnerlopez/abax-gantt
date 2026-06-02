@@ -1,0 +1,163 @@
+/* ============================================================
+   ABAX Gantt — UI primitives (Fase 1 del rediseño)
+   Solo el CSS de Button / StatusPill / Avatar / Chip / Seg /
+   Field / ProgressMini. No toca el resto de la app.
+   ============================================================ */
+
+/* Utility numeric font */
+.tnum { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--font-mono); font-feature-settings: 'tnum' 1; }
+
+/* ===================== BUTTONS ===================== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-3);
+  height: 34px; padding: 0 var(--sp-5);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font-family: inherit;
+  font-size: var(--fs-13); font-weight: var(--fw-medium);
+  white-space: nowrap;
+  transition: background-color .12s, border-color .12s, color .12s, box-shadow .12s;
+}
+.btn:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--border-strong); }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); border-color: var(--accent); }
+.btn-primary {
+  background: var(--accent); border-color: var(--accent);
+  color: var(--text-on-accent); font-weight: var(--fw-semibold);
+  box-shadow: var(--shadow-xs);
+}
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
+.btn-ghost:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-strong); }
+.btn-danger {
+  color: var(--c-late-text); border-color: var(--c-late-border); background: var(--c-late-soft);
+}
+.btn-danger:hover:not(:disabled) { border-color: var(--c-late); }
+.btn-sm { height: 28px; padding: 0 var(--sp-4); font-size: var(--fs-12); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.btn .kbd { background: transparent; border-color: var(--border-soft); }
+.btn-primary .kbd {
+  background: oklch(1 0 0 / 0.18);
+  border-color: oklch(1 0 0 / 0.25);
+  color: oklch(1 0 0 / 0.9);
+}
+
+/* ===================== KBD ===================== */
+.kbd {
+  display: inline-flex; align-items: center;
+  font-family: var(--font-mono); font-size: var(--fs-11);
+  padding: 1px 6px; border-radius: var(--r-xs);
+  background: var(--bg-surface); border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+/* ===================== STATUS PILL ===================== */
+.status {
+  display: inline-flex; align-items: center; gap: var(--sp-3);
+  height: 22px; padding: 0 var(--sp-4) 0 var(--sp-3);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-12); font-weight: var(--fw-semibold);
+  border: 1px solid transparent; white-space: nowrap;
+  line-height: 1;
+}
+.status .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+/* Spanish status keys → estilos del semáforo del rediseño */
+.status.completado     { background: var(--c-done-soft); color: var(--c-done-text); border-color: var(--c-done-border); }
+.status.completado .status-dot { background: var(--c-done); }
+.status.en_progreso    { background: var(--c-prog-soft); color: var(--c-prog-text); border-color: var(--c-prog-border); }
+.status.en_progreso .status-dot { background: var(--c-prog); }
+.status.retrasado      { background: var(--c-late-soft); color: var(--c-late-text); border-color: var(--c-late-border); }
+.status.retrasado .status-dot { background: var(--c-late); }
+.status.pendiente      { background: var(--c-pend-soft); color: var(--c-pend-text); border-color: var(--c-pend-border); }
+.status.pendiente .status-dot { background: var(--c-pend); }
+
+/* Aliases para estados extra que ya existen en la app actual */
+.status.cancelado, .status.en_pausa, .status.en_revision {
+  background: var(--c-pend-soft); color: var(--c-pend-text); border-color: var(--c-pend-border);
+}
+.status.cancelado .status-dot, .status.en_pausa .status-dot, .status.en_revision .status-dot { background: var(--c-pend); }
+
+/* ===================== AVATAR ===================== */
+.avatar {
+  display: grid; place-items: center;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  font-size: var(--fs-11); font-weight: var(--fw-semibold);
+  color: #fff; flex-shrink: 0;
+  border: 1.5px solid var(--bg-surface);
+  background: var(--c-prog);
+  user-select: none;
+}
+.avatar-sm { width: 22px; height: 22px; font-size: 9px; }
+.avatar-lg { width: 34px; height: 34px; font-size: var(--fs-13); }
+.avatar-stack { display: flex; }
+.avatar-stack .avatar:not(:first-child) { margin-left: -8px; }
+
+/* ===================== CHIP ===================== */
+.chip {
+  display: inline-flex; align-items: center; gap: var(--sp-3);
+  height: 30px; padding: 0 var(--sp-5);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: var(--fs-13); font-weight: var(--fw-medium);
+  white-space: nowrap;
+  transition: background-color .12s, border-color .12s, color .12s;
+}
+.chip:hover { border-color: var(--border-strong); color: var(--text-strong); background: var(--bg-hover); }
+.chip.is-on { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); }
+.chip.is-on:hover { background: var(--accent-hover); }
+.chip .chip-remove {
+  display: inline-grid; place-items: center;
+  width: 14px; height: 14px;
+  opacity: .8;
+  background: transparent; border: 0; padding: 0;
+  color: inherit; cursor: pointer;
+}
+.chip .chip-remove:hover { opacity: 1; }
+
+/* ===================== SEGMENTED ===================== */
+.seg {
+  display: inline-flex;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 2px; gap: 2px;
+}
+.seg button {
+  height: 26px; padding: 0 var(--sp-4);
+  border: 0; background: transparent; border-radius: var(--r-sm);
+  font-family: inherit;
+  font-size: var(--fs-13); font-weight: var(--fw-medium); color: var(--text-muted);
+  transition: background-color .12s, color .12s, box-shadow .12s;
+}
+.seg button:hover { color: var(--text-strong); }
+.seg button.is-on {
+  background: var(--bg-surface);
+  color: var(--accent-text);
+  box-shadow: var(--shadow-xs);
+  font-weight: var(--fw-semibold);
+}
+
+/* ===================== FIELD ===================== */
+.field { display: flex; flex-direction: column; gap: var(--sp-3); }
+.field-label {
+  font-size: var(--fs-11); font-weight: var(--fw-semibold);
+  letter-spacing: .05em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.field-hint { font-size: var(--fs-12); color: var(--text-faint); line-height: 1.4; }
+
+/* ===================== PROGRESS MINI ===================== */
+.pct-mini { display: inline-flex; align-items: center; gap: var(--sp-3); }
+.pct-bar { width: 30px; height: 4px; border-radius: var(--r-pill); background: var(--gantt-bar-track); overflow: hidden; }
+.pct-fill { height: 100%; background: var(--c-prog); border-radius: inherit; transition: width .2s; }
+.pct-fill.done { background: var(--c-done); }
+.pct-fill.late { background: var(--c-late); }
+.pct-label { font-size: var(--fs-11); min-width: 26px; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-muted); }

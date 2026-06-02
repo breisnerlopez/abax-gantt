@@ -120,7 +120,9 @@ describe('DetailPanel permissions and progress', () => {
 
     renderDetail();
 
-    await user.click(screen.getByRole('tab', { name: 'Presupuesto' }));
+    // Presupuesto vive ahora dentro del dropdown "Más ▾" (rediseño Fase 8).
+    await user.click(screen.getByRole('tab', { name: /Más/ }));
+    await user.click(screen.getByRole('menuitemradio', { name: 'Presupuesto' }));
 
     expect(await screen.findByText('$100,000')).toBeTruthy();
     expect(screen.getByText('$25,000')).toBeTruthy();
@@ -133,7 +135,9 @@ describe('DetailPanel permissions and progress', () => {
     vi.mocked(getBudgetReport).mockRejectedValueOnce(new Error('Presupuesto no disponible'));
     renderDetail();
 
-    await user.click(screen.getByRole('tab', { name: 'Presupuesto' }));
+    // Presupuesto vive ahora dentro del dropdown "Más ▾" (rediseño Fase 8).
+    await user.click(screen.getByRole('tab', { name: /Más/ }));
+    await user.click(screen.getByRole('menuitemradio', { name: 'Presupuesto' }));
 
     expect(await screen.findByText('Presupuesto no disponible')).toBeTruthy();
   });
@@ -150,7 +154,9 @@ describe('DetailPanel permissions and progress', () => {
 
     renderDetail();
 
-    await user.click(screen.getByRole('tab', { name: 'Adjuntos' }));
+    // Adjuntos vive ahora dentro del dropdown "Más ▾" (rediseño Fase 8).
+    await user.click(screen.getByRole('tab', { name: /Más/ }));
+    await user.click(screen.getByRole('menuitemradio', { name: 'Adjuntos' }));
     expect(await screen.findByText('plan.pdf')).toBeTruthy();
     expect(screen.getByText('2 KB')).toBeTruthy();
 

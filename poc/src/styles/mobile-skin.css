@@ -1,0 +1,253 @@
+/* ============================================================
+   ABAX Gantt — Mobile (Fase 5 del rediseño, handoff §4)
+   Restyling de la vista "Tu agenda" del ejecutor con:
+   - Cards ricas (estado a la izquierda, ruta, avance, registrar horas)
+   - Secciones con label + contador (Hoy / Esta semana / Atrasadas)
+   - Hit targets ≥ 44px en los CTAs
+   ============================================================ */
+
+/* ---- Container ---- */
+.mobile-tasks {
+  background: var(--bg-canvas);
+  gap: var(--sp-5);
+  padding: var(--sp-5) var(--sp-5) var(--sp-9);
+}
+
+/* ---- Cabecera ---- */
+.mobile-tasks-header {
+  align-items: flex-end;
+  padding-top: var(--sp-3);
+}
+.mobile-tasks-header p {
+  font-size: var(--fs-11);
+  font-weight: var(--fw-bold);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  /* AA: bumped a --text-muted para 4.5:1 sobre fondo claro */
+  color: var(--text-muted);
+}
+.mobile-tasks-header h2 {
+  font-size: var(--fs-22);
+  font-weight: var(--fw-bold);
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+.mobile-show-gantt {
+  height: 32px;
+  padding: 0 var(--sp-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font-family: inherit;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+}
+.mobile-show-gantt:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+
+/* ---- Empty state ---- */
+.mtask-empty {
+  padding: var(--sp-9) var(--sp-6);
+  text-align: center;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-lg);
+  background: var(--bg-surface);
+}
+.mtask-empty p { color: var(--text-muted); font-size: var(--fs-13); }
+.mtask-empty button {
+  height: 34px;
+  padding: 0 var(--sp-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font-family: inherit;
+  font-size: var(--fs-13);
+  font-weight: var(--fw-medium);
+}
+
+/* ---- Sección (Hoy / Esta semana / Atrasadas) ---- */
+.mtask-section { gap: var(--sp-4); }
+.mtask-section h3 {
+  align-items: center;
+  margin: var(--sp-4) 0 0;
+  font-size: var(--fs-11);
+  font-weight: var(--fw-bold);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.mtask-section h3 span {
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: 1px 8px;
+  color: var(--text-muted);
+}
+.mtask-section--danger h3 { color: var(--c-late-text); }
+.mtask-section--danger h3 span {
+  background: var(--c-late-soft);
+  border-color: var(--c-late-border);
+  color: var(--c-late-text);
+}
+.mtask-section--warning h3 { color: var(--c-milestone); }
+.mtask-section--warning h3 span {
+  background: var(--c-milestone-soft);
+  border-color: var(--c-milestone);
+  color: var(--c-milestone);
+}
+
+/* ---- Task card ---- */
+.mtask-card {
+  position: relative;
+  gap: var(--sp-4);
+  padding: var(--sp-5) var(--sp-5) var(--sp-5) calc(var(--sp-5) + 4px);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-xs);
+}
+/* Banda de color izquierdo según estado (computado por glyph del nodo) */
+.mtask-card::before {
+  content: "";
+  position: absolute;
+  top: var(--sp-4); bottom: var(--sp-4);
+  left: 4px; width: 4px;
+  border-radius: var(--r-pill);
+  background: var(--c-pend);
+}
+.mtask-card:has(.mtask-glyph--milestone)::before { background: var(--c-milestone); }
+.mtask-card:has(.mtask-glyph--stage)::before { background: var(--accent); }
+
+/* Head: tipo, título, días */
+.mtask-head { gap: var(--sp-4); align-items: flex-start; }
+.mtask-glyph {
+  width: 12px; height: 12px;
+  border-radius: 3px;
+  background: var(--c-prog);
+  margin-top: 2px;
+}
+.mtask-glyph--milestone {
+  width: 13px; height: 13px;
+  border-radius: 2px;
+  transform: rotate(45deg);
+  background: var(--c-milestone);
+}
+.mtask-glyph--stage {
+  border: 1.5px dashed var(--accent);
+  background: var(--accent-soft);
+}
+.mtask-titles b {
+  font-size: var(--fs-15);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+  line-height: 1.3;
+  white-space: normal;
+}
+.mtask-titles small {
+  color: var(--text-faint);
+  font-size: var(--fs-12);
+  margin-top: 2px;
+}
+
+/* Pildora de días — usa el sistema de semáforo */
+.mtask-days {
+  display: inline-flex; align-items: center;
+  height: 22px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-pill);
+  border: 1px solid;
+  font-size: var(--fs-11);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  letter-spacing: .02em;
+}
+.mtask-days--danger {
+  background: var(--c-late-soft); color: var(--c-late-text); border-color: var(--c-late-border);
+}
+.mtask-days--warning {
+  background: var(--c-milestone-soft); color: var(--c-milestone); border-color: var(--c-milestone);
+}
+.mtask-days--muted {
+  background: var(--bg-subtle); color: var(--text-muted); border-color: var(--border);
+}
+
+/* Meta: responsable + progress */
+.mtask-meta {
+  font-size: var(--fs-12);
+  color: var(--text-muted);
+}
+.mtask-resp { color: var(--text-muted); font-weight: var(--fw-medium); }
+.mtask-progress-value {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-bold);
+  color: var(--accent-text);
+}
+
+/* Slider de avance (hit target ≥ 44px) */
+.mtask-actions { gap: var(--sp-4); align-items: center; min-height: 44px; }
+.mtask-slider {
+  accent-color: var(--accent);
+  height: 28px;
+}
+.mtask-hours-btn {
+  min-height: 36px;
+  padding: 0 var(--sp-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font-family: inherit;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-medium);
+}
+.mtask-hours-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+.mtask-hours-form input {
+  height: 36px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: var(--fs-13);
+}
+.mtask-hours-form input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.mtask-hours-form button {
+  height: 36px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-medium);
+}
+.mtask-hours-form button[type="submit"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: var(--fw-semibold);
+}
+
+/* ---- Botón "volver a la lista" (cuando se fuerza el Gantt) ---- */
+.mobile-back-to-list {
+  background: var(--bg-subtle);
+  border-bottom-color: var(--border);
+}
+.mobile-back-to-list button {
+  color: var(--accent-text);
+  font-weight: var(--fw-semibold);
+  min-height: 32px;
+}

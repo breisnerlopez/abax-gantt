@@ -1,4 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
+type DetailTab = 'info' | 'responsables' | 'ejecutores' | 'avance' | 'horas' | 'presupuesto' | 'adjuntos';
+const PRIMARY_TABS: { id: DetailTab; label: string }[] = [
+  { id: 'info', label: 'Info' },
+  { id: 'responsables', label: 'Responsables' },
+  { id: 'ejecutores', label: 'Ejecutores' },
+  { id: 'avance', label: 'Avance' },
+  { id: 'horas', label: 'Horas' },
+];
+const SECONDARY_TABS: { id: DetailTab; label: string }[] = [
+  { id: 'presupuesto', label: 'Presupuesto' },
+  { id: 'adjuntos', label: 'Adjuntos' },
+];
+const SECONDARY_IDS: DetailTab[] = SECONDARY_TABS.map((t) => t.id);
 import { ConfirmDialog } from './ConfirmDialog';
 import { TimesheetPanel } from './TimesheetPanel';
 import { deleteAttachment, getBudgetReport, listAttachments, uploadAttachment } from '../lib/api';
@@ -51,15 +64,38 @@ interface DetailPanelProps {
   canReportProgress: boolean;
   /** Callback opcional para cerrar el panel (botón ✕). */
   onClose?: () => void;
+  /** Rediseño Fase 4: si el panel está "acoplado" (toma columna propia) o flotante. */
+  pinned?: boolean;
+  /** Toggle del pin desde el header. Si no se pasa, no se muestra el botón. */
+  onTogglePinned?: () => void;
 }
 
 type SaveState = 'saved' | 'saving' | 'error';
 
-export function DetailPanel({ node, token, users, assignees, onSave, onUnschedule, onAddAssignee, onRemoveAssignee, onReportProgress, onSetResponsible, canEditStructure, canReportProgress, onClose }: DetailPanelProps) {
+export function DetailPanel({ node, token, users, assignees, onSave, onUnschedule, onAddAssignee, onRemoveAssignee, onReportProgress, onSetResponsible, canEditStructure, canReportProgress, onClose, pinned, onTogglePinned }: DetailPanelProps) {
   const [form, setForm] = useState(() => toForm(node));
   const [saveState, setSaveState] = useState<SaveState>('saved');
-  const [activeTab, setActiveTab] = useState<'info' | 'responsables' | 'ejecutores' | 'avance' | 'horas' | 'presupuesto' | 'adjuntos'>('info');
+  const [activeTab, setActiveTab] = useState<DetailTab>('info');
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
   const dirtyRef = useRef(false);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const closer = (e: MouseEvent) => {
+      if (!moreRef.current?.contains(e.target as Node)) setMoreOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMoreOpen(false); };
+    document.addEventListener('mousedown', closer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', closer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [moreOpen]);
+
+  const activeInSecondary = SECONDARY_IDS.includes(activeTab);
+  const secondaryActive = SECONDARY_TABS.find((t) => t.id === activeTab) ?? null;
 
   useEffect(() => {
     if (!node || !dirtyRef.current) return;
@@ -117,34 +153,83 @@ export function DetailPanel({ node, token, users, assignees, onSave, onUnschedul
   };
 
   return (
-    <aside className="detail-panel">
+    <aside className={'detail-panel' + (pinned === false ? ' detail-panel--floating' : '')}>
       <div className="detail-header">
-        {onClose && (
-          <button
-            type="button"
-            className="detail-header-close"
-            title="Colapsar panel"
-            aria-label="Colapsar panel de detalle"
-            onClick={onClose}
-          >
-            ›
-          </button>
-        )}
+        <div className="detail-header-actions">
+          {onTogglePinned && (
+            <button
+              type="button"
+              className={'detail-header-pin' + (pinned !== false ? ' is-on' : '')}
+              title={pinned !== false ? 'Desacoplar (panel flotante)' : 'Acoplar al borde'}
+              aria-label={pinned !== false ? 'Desacoplar panel' : 'Acoplar panel'}
+              aria-pressed={pinned !== false}
+              onClick={onTogglePinned}
+            >
+              📌
+            </button>
+          )}
+          {onClose && (
+            <button
+              type="button"
+              className="detail-header-close"
+              title="Cerrar panel"
+              aria-label="Cerrar panel de detalle"
+              onClick={onClose}
+            >
+              ✕
+            </button>
+          )}
+        </div>
         <span className={`type-dot type-dot--${node.type}`} />
         <div className="detail-header-text">
-          <p>{labelForType(node.type)} <span className={`status-badge status-badge--${nodeStatusBadge(node)}`}>{statusLabel(node)}</span></p>
+          <p>{labelForType(node.type)} <span className={`status ${nodeStatusBadge(node)}`}><span className="status-dot" />{statusLabel(node)}</span></p>
           <h2>{node.name}</h2>
           {node.responsible_id && <small>Responsable: {displayUser(users.find((user) => user.id === node.responsible_id))}</small>}
         </div>
       </div>
       <nav className="detail-tabs" role="tablist" aria-label="Secciones del nodo">
-        <button role="tab" aria-selected={activeTab === 'info'} className={activeTab === 'info' ? 'active' : ''} onClick={() => setActiveTab('info')}>Info</button>
-        <button role="tab" aria-selected={activeTab === 'responsables'} className={activeTab === 'responsables' ? 'active' : ''} onClick={() => setActiveTab('responsables')}>Responsables</button>
-        <button role="tab" aria-selected={activeTab === 'ejecutores'} className={activeTab === 'ejecutores' ? 'active' : ''} onClick={() => setActiveTab('ejecutores')}>Ejecutores</button>
-        <button role="tab" aria-selected={activeTab === 'avance'} className={activeTab === 'avance' ? 'active' : ''} onClick={() => setActiveTab('avance')}>Avance</button>
-        <button role="tab" aria-selected={activeTab === 'horas'} className={activeTab === 'horas' ? 'active' : ''} onClick={() => setActiveTab('horas')}>Horas</button>
-        <button role="tab" aria-selected={activeTab === 'presupuesto'} className={activeTab === 'presupuesto' ? 'active' : ''} onClick={() => setActiveTab('presupuesto')}>Presupuesto</button>
-        <button role="tab" aria-selected={activeTab === 'adjuntos'} className={activeTab === 'adjuntos' ? 'active' : ''} onClick={() => setActiveTab('adjuntos')}>Adjuntos</button>
+        {PRIMARY_TABS.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={activeTab === t.id}
+            className={activeTab === t.id ? 'active' : ''}
+            onClick={() => setActiveTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+        {/* Tab "Más ▾" agrupa Presupuesto y Adjuntos para seguir el patrón de
+            5 tabs principales del rediseño sin perder la funcionalidad. */}
+        <div className="detail-tabs-more" ref={moreRef}>
+          <button
+            type="button"
+            role="tab"
+            aria-haspopup="menu"
+            aria-expanded={moreOpen}
+            aria-selected={activeInSecondary}
+            className={activeInSecondary ? 'active' : ''}
+            onClick={() => setMoreOpen((v) => !v)}
+          >
+            {secondaryActive ? secondaryActive.label : 'Más'} <span aria-hidden="true">▾</span>
+          </button>
+          {moreOpen && (
+            <div className="detail-tabs-more-menu" role="menu">
+              {SECONDARY_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={activeTab === t.id}
+                  className={activeTab === t.id ? 'is-on' : ''}
+                  onClick={() => { setActiveTab(t.id); setMoreOpen(false); }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </nav>
       {activeTab === 'info' && <div role="tabpanel"><InfoTab node={node} form={form} update={update} onUnschedule={onUnschedule} canEditStructure={canEditStructure} /></div>}
       {activeTab === 'responsables' && <div role="tabpanel"><ResponsibleTab node={node} users={users} onSetResponsible={onSetResponsible} canEditStructure={canEditStructure} /></div>}

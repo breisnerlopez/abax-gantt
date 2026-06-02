@@ -2,29 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { gantt } from 'dhtmlx-gantt';
 import { ConfirmDialog } from './ConfirmDialog';
 import { toGanttData } from '../lib/dhtmlx-adapter';
+import { STATUS_LABELS, computeNodeStatus, statusToBarClass } from '../lib/status';
+import { DEFAULT_GRID_COLUMNS, type GridColumnsConfig } from '../lib/grid-columns';
+import { isSyntheticGroupId } from '../lib/grouping';
 import type { Dependency, DependencyType, Profile, WbsNode } from '../lib/types';
 import { canCreateDependency, canMoveNode } from '../lib/validation';
 
 const COLLAPSED_KEY = 'abax.collapsed';
-
-const STATUS_LABELS: Record<string, string> = {
-  pendiente: 'Pendiente',
-  en_progreso: 'En progreso',
-  completado: 'Completado',
-  retrasado: 'Retrasado',
-  cancelado: 'Cancelado',
-  en_pausa: 'En pausa',
-  en_revision: 'En revisión',
-};
-
-function computeNodeStatus(node: WbsNode): string {
-  if (node.status) return node.status;
-  const today = new Date().toISOString().slice(0, 10);
-  if ((node.progress ?? 0) >= 1) return 'completado';
-  if (node.end_date && node.end_date < today) return 'retrasado';
-  if ((node.progress ?? 0) > 0) return 'en_progreso';
-  return 'pendiente';
-}
 
 function loadCollapsed(): Set<string> {
   try {
@@ -54,9 +38,13 @@ interface GanttCanvasProps {
   todaySignal: number;
   scale: 'Día' | 'Semana' | 'Mes' | 'Año';
   onMoveComplete: () => void;
+  /** Id del nodo seleccionado (desde el padre). Si cambia, el canvas scrollea el timeline para centrarlo. */
+  selectedNodeId?: string | null;
+  /** Visibilidad de las columnas configurables del grid (rediseño Fase 4 §5.4). */
+  visibleColumns?: GridColumnsConfig;
 }
 
-export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreateDependency, onDeleteDependency, onMoveNode, onUpdateDates, onUpdateStatus, canEditStructure, onValidationError, todaySignal, scale, onMoveComplete }: GanttCanvasProps) {
+export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreateDependency, onDeleteDependency, onMoveNode, onUpdateDates, onUpdateStatus, canEditStructure, onValidationError, todaySignal, scale, onMoveComplete, selectedNodeId, visibleColumns = DEFAULT_GRID_COLUMNS }: GanttCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pendingDeleteLinkId, setPendingDeleteLinkId] = useState<string | null>(null);
   const [deletingLink, setDeletingLink] = useState(false);
@@ -66,6 +54,8 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
   const nodesRef = useRef(nodes);
   const dependenciesRef = useRef(dependencies);
   const usersRef = useRef(users);
+  const visibleColumnsRef = useRef(visibleColumns);
+  const rebuildColumnsRef = useRef<(() => void) | null>(null);
   const callbacksRef = useRef({ onSelectNode, onCreateDependency, onDeleteDependency, onMoveNode, onUpdateDates, onUpdateStatus, onValidationError, onMoveComplete });
   // Flag para suprimir onAfterTaskUpdate durante un parse/clearAll programático.
   const isParsingRef = useRef(false);
@@ -73,8 +63,16 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     nodesRef.current = nodes;
     dependenciesRef.current = dependencies;
     usersRef.current = users;
+    visibleColumnsRef.current = visibleColumns;
     callbacksRef.current = { onSelectNode, onCreateDependency, onDeleteDependency, onMoveNode, onUpdateDates, onUpdateStatus, onValidationError, onMoveComplete };
   });
+
+  // Cuando cambia la visibilidad de columnas, pedimos al canvas que reconstruya
+  // su `gantt.config.columns`. La construcción real vive dentro del init para
+  // poder usar las closures (userByIdGet, parseLocalYmdMaybe).
+  useEffect(() => {
+    rebuildColumnsRef.current?.();
+  }, [visibleColumns]);
 
   // Init UNA SOLA VEZ (depende sólo de canEditStructure para reconfigurar permisos).
   // Antes incluíamos `nodes` en deps, lo que disparaba un gantt.init + clearAll cada vez
@@ -109,16 +107,21 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     gantt.config.smart_rendering = true;
     gantt.config.min_grid_column_width = 60;
 
-    gantt.config.columns = [
-      {
-        name: 'text',
-        label: 'Nombre',
-        tree: true,
-        width: 360,
-        resize: true,
-        template: (task: { text?: string; type?: string }) => `<span class="wbs-glyph wbs-glyph--${task.type ?? 'task'}"></span>${task.text ?? ''}`,
-      },
-      {
+    /** Construye `gantt.config.columns` respetando la visibilidad configurada. */
+    const buildColumns = () => {
+      const v = visibleColumnsRef.current;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cols: any[] = [
+        {
+          name: 'text',
+          label: 'Nombre',
+          tree: true,
+          width: 360,
+          resize: true,
+          template: (task: { text?: string; type?: string }) => `<span class="wbs-glyph wbs-glyph--${task.type ?? 'task'}"></span>${task.text ?? ''}`,
+        },
+      ];
+      if (v.start_date) cols.push({
         name: 'start_date',
         label: 'Inicio',
         width: 95,
@@ -134,17 +137,17 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
           const mm = String(d.getMonth() + 1).padStart(2, '0');
           return `${dd}/${mm}/${d.getFullYear()}`;
         },
-      },
-      { name: 'duration', label: 'Días', width: 48, align: 'center', resize: true },
-      {
+      });
+      if (v.duration) cols.push({ name: 'duration', label: 'Días', width: 48, align: 'center', resize: true });
+      if (v.progress) cols.push({
         name: 'progress',
         label: '%',
         width: 48,
         align: 'center',
         resize: true,
         template: (task: { progress?: number }) => `${Math.round((task.progress ?? 0) * 100)}%`,
-      },
-      {
+      });
+      if (v.status) cols.push({
         name: 'status',
         label: 'Estado',
         width: 105,
@@ -162,34 +165,39 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
           const ganttTask = task as { node?: WbsNode };
           if (!ganttTask.node) return '';
           const s = computeNodeStatus(ganttTask.node);
-          // Punto a la izquierda cuando el estado es manual (node.status no es null).
-          // Asi el usuario VE que su seleccion se guardo incluso cuando el computed
-          // coincide con el manual (caso comun: progress=1 + selecciona "Completado").
           const isManual = ganttTask.node.status != null;
-          const cls = `status-badge status-badge--${s}${isManual ? ' status-badge--manual' : ''}`;
-          const title = isManual ? `Estado manual: ${STATUS_LABELS[s] ?? s}` : `Estado automatico: ${STATUS_LABELS[s] ?? s}`;
-          return `<span class="${cls}" title="${title}">${STATUS_LABELS[s] ?? s}</span>`;
+          const cls = `status ${s}${isManual ? ' is-manual' : ''}`;
+          const title = isManual ? `Estado manual: ${STATUS_LABELS[s] ?? s}` : `Estado automático: ${STATUS_LABELS[s] ?? s}`;
+          return `<span class="${cls}" title="${title}"><span class="status-dot"></span>${STATUS_LABELS[s] ?? s}</span>`;
         },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any,
-      {
+      });
+      if (v.responsible) cols.push({
         name: 'responsible',
         label: 'Resp.',
         width: 70,
         align: 'center',
         resize: false,
-        template: (task) => {
-          const ganttTask = task as { node?: WbsNode };
-          const responsible = ganttTask.node?.responsible_id ? userByIdGet().get(ganttTask.node.responsible_id) : null;
+        template: (task: { node?: WbsNode }) => {
+          const responsible = task.node?.responsible_id ? userByIdGet().get(task.node.responsible_id) : null;
           return responsible ? `<span class="responsible-badge">${initials(responsible.full_name ?? responsible.email ?? 'U')}</span>` : '';
         },
-      },
-    ];
+      });
+      gantt.config.columns = cols;
+    };
+    buildColumns();
+    rebuildColumnsRef.current = () => {
+      buildColumns();
+      try { gantt.render(); } catch { /* aún sin init */ }
+    };
 
-    gantt.templates.task_class = (_start, _end, task: { id?: string | number; type?: string; isUnscheduled?: boolean }) => {
+    gantt.templates.task_class = (_start, _end, task: { id?: string | number; type?: string; isUnscheduled?: boolean; node?: WbsNode }) => {
       const selected = task.id != null && gantt.isSelectedTask(String(task.id));
       const unscheduledClass = task.isUnscheduled ? ' task-unscheduled' : '';
-      return `task-${task.type ?? 'task'}${unscheduledClass}${selected ? ' task-selected' : ''}`;
+      // Clase de estado para colorear la barra según el semáforo (rediseño Fase 2).
+      // Solo aplica a tareas reales; proyectos y etapas conservan su skin de "summary".
+      const isLeafTask = (task.type ?? 'task') === 'task' && !task.isUnscheduled;
+      const stateClass = isLeafTask && task.node ? ` ${statusToBarClass(computeNodeStatus(task.node))}` : '';
+      return `task-${task.type ?? 'task'}${unscheduledClass}${stateClass}${selected ? ' task-selected' : ''}`;
     };
     gantt.templates.grid_row_class = (_start, _end, task: { id?: string | number; type?: string; isUnscheduled?: boolean }) => {
       const selected = task.id != null && gantt.isSelectedTask(String(task.id));
@@ -222,22 +230,56 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     });
 
     // V-15: activar plugin tooltip de DHTMLX para que `gantt.templates.tooltip_text` se renderice on-hover.
+    // Fase 2 rediseño: activar también el plugin marker (para la línea HOY).
     try {
-      (gantt as unknown as { plugins?: (p: Record<string, boolean>) => void }).plugins?.({ tooltip: true });
-    } catch { /* plugin ya activado */ }
+      (gantt as unknown as { plugins?: (p: Record<string, boolean>) => void }).plugins?.({ tooltip: true, marker: true });
+    } catch { /* plugins ya activados */ }
+
+    // Rediseño Fase 2: tinte de fin de semana en la cabecera de escala y en las
+    // celdas de la timeline. Necesario para usar var(--gantt-weekend).
+    gantt.templates.scale_cell_class = (date: Date) => {
+      const day = date.getDay();
+      return (day === 0 || day === 6) ? 'weekend' : '';
+    };
+    gantt.templates.timeline_cell_class = (_task: unknown, date: Date) => {
+      const day = date.getDay();
+      return (day === 0 || day === 6) ? 'weekend' : '';
+    };
+
     gantt.init(containerRef.current);
     gantt.setSkin('material');
     gantt.ext.zoom.setLevel(scale);
 
+    // Rediseño Fase 2: línea vertical "HOY" con etiqueta.
+    try {
+      type MarkerInput = { start_date: Date; css?: string; text?: string; title?: string };
+      type MarkerApi = { addMarker?: (m: MarkerInput) => string; deleteMarker?: (id: string) => void };
+      const markerApi = gantt as unknown as MarkerApi;
+      if (markerApi.addMarker) {
+        markerApi.addMarker({ start_date: new Date(), css: 'today-marker', text: 'HOY', title: 'Hoy' });
+      }
+    } catch { /* plugin marker no disponible */ }
+
     const selectEvent = gantt.attachEvent('onTaskSelected', (id) => {
+      // Las cabeceras sintéticas de agrupación (id "__resp__*") son virtuales:
+      // no son nodos reales, no se persisten y no tienen panel de detalle.
+      if (isSyntheticGroupId(String(id))) {
+        callbacksRef.current.onSelectNode(null);
+        return false;
+      }
       const selected = nodesRef.current.find((node) => node.id === String(id)) ?? null;
       callbacksRef.current.onSelectNode(selected);
+      // Centrar el timeline en la barra seleccionada. Sin esto, si la tarea esta
+      // fuera del viewport horizontal el usuario no la ve aunque la haya seleccionado.
+      try { gantt.showTask(String(id)); } catch { /* tarea aun no parseada */ }
       return true;
     });
 
     // Las fechas de project/stage/group son derivadas (MIN/MAX de hijos) en el backend.
     // Bloqueamos cualquier intento de moverlas/resizearlas desde el timeline.
+    // También bloqueamos las cabeceras sintéticas de agrupación (id "__resp__*").
     const beforeDragEvent = gantt.attachEvent('onBeforeTaskDrag', (id, mode) => {
+      if (isSyntheticGroupId(String(id))) return false;
       if (mode !== 'move' && mode !== 'resize') return true;
       const task = gantt.getTask(id) as { type?: string };
       if (task?.type === 'project' || task?.type === 'stage' || task?.type === 'group') {
@@ -514,6 +556,18 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     const date = new Date().toISOString().slice(0, 10);
     try { gantt.showDate(new Date(date)); } catch { /* gantt not initialized */ }
   }, [todaySignal]);
+
+  // Cuando el nodo seleccionado cambia desde fuera (backlog, deep-link, etc.),
+  // centrar el timeline para que la barra correspondiente quede a la vista.
+  useEffect(() => {
+    if (!selectedNodeId) return;
+    try {
+      if (gantt.isTaskExists(selectedNodeId)) {
+        gantt.selectTask(selectedNodeId);
+        gantt.showTask(selectedNodeId);
+      }
+    } catch { /* gantt aun no inicializado o la tarea no esta en el dataset */ }
+  }, [selectedNodeId]);
 
   // V-02 fix: re-calculate sizes when the container resizes (detail panel toggling,
   // backlog open/close, filter changes that shrink the gantt area).

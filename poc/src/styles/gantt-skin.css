@@ -1,0 +1,234 @@
+/* ============================================================
+   ABAX Gantt — Skin de DHTMLX Gantt (Fase 2 del rediseño)
+   Sobrescribe el motor de DHTMLX usando los tokens del rediseño:
+   - barras por estado (t-done / t-prog / t-late / t-pend)
+   - barra-resumen para proyectos (gradiente índigo + cuñas)
+   - etapa/grupo (outline punteado)
+   - hito (diamante warm)
+   - HOY (línea vertical roja con etiqueta)
+   - weekend (banda gris cálida)
+   - dependencias (líneas con punta de flecha en --gantt-dep-line)
+   - status pill en la columna "Estado" (alineada con .status)
+
+   IMPORTANTE: este archivo se importa DESPUÉS de styles.css en main.tsx,
+   así que tiene prioridad sobre las reglas viejas equivalentes.
+   ============================================================ */
+
+/* -------- task bar base: redondeo y tipografía -------- */
+.gantt_task_line {
+  border: 0 !important;
+  border-radius: var(--r-sm) !important;
+  box-shadow: var(--shadow-xs);
+  transition: filter .1s, box-shadow .1s;
+}
+.gantt_task_line:hover {
+  filter: brightness(1.04);
+  box-shadow: var(--shadow-sm);
+  z-index: 6;
+}
+
+/* La barra de progreso (capa interna) se colorea según el estado. */
+.gantt_task_progress {
+  background: var(--c-prog) !important;
+  border-radius: inherit;
+}
+
+/* -------- barras por estado (semáforo) -------- */
+/* Por defecto la pista vacía es el track neutro y el progreso es azul */
+.gantt_task_line.t-pend {
+  background: var(--gantt-bar-track) !important;
+  color: var(--text-muted);
+}
+.gantt_task_line.t-pend .gantt_task_progress { background: var(--c-pend) !important; }
+
+.gantt_task_line.t-prog {
+  background: var(--c-prog-soft) !important;
+  color: var(--c-prog-text);
+}
+.gantt_task_line.t-prog .gantt_task_progress { background: var(--c-prog) !important; }
+
+.gantt_task_line.t-done {
+  background: var(--c-done-soft) !important;
+  color: var(--c-done-text);
+}
+.gantt_task_line.t-done .gantt_task_progress { background: var(--c-done) !important; }
+
+.gantt_task_line.t-late {
+  background: var(--c-late-soft) !important;
+  color: var(--c-late-text);
+}
+.gantt_task_line.t-late .gantt_task_progress { background: var(--c-late) !important; }
+
+/* -------- summary bars (proyecto): gradiente índigo + cuñas -------- */
+.gantt_task_line.task-project {
+  background: linear-gradient(90deg, var(--gantt-summary-2), var(--gantt-summary)) !important;
+  box-shadow: var(--shadow-sm);
+  color: var(--text-on-accent);
+}
+.gantt_task_line.task-project .gantt_task_progress {
+  background: oklch(0 0 0 / 0.28) !important;
+}
+[data-theme="dark"] .gantt_task_line.task-project .gantt_task_progress {
+  background: oklch(1 1 1 / 0.22) !important;
+}
+.gantt_task_line.task-project::before,
+.gantt_task_line.task-project::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--gantt-summary);
+  pointer-events: none;
+}
+.gantt_task_line.task-project::before { left: 0; }
+.gantt_task_line.task-project::after  { right: 0; }
+
+/* -------- etapa: outline punteado --------*/
+.gantt_task_line.task-stage {
+  background: var(--accent-soft) !important;
+  border: 1.5px dashed var(--accent) !important;
+  color: var(--accent-text);
+  box-shadow: none;
+}
+.gantt_task_line.task-stage .gantt_task_progress {
+  background: var(--accent) !important;
+  opacity: .55;
+}
+
+/* -------- grupo: tono teal suave --------*/
+.gantt_task_line.task-group {
+  background: var(--accent-soft-2) !important;
+  border: 1px dashed var(--accent) !important;
+  color: var(--accent-text);
+  box-shadow: none;
+}
+.gantt_task_line.task-group .gantt_task_progress {
+  background: var(--accent) !important;
+  opacity: .45;
+}
+
+/* -------- hito: diamante warm -------- */
+.gantt_task_line.task-milestone,
+.gantt_task_line.gantt_milestone {
+  background: var(--c-milestone) !important;
+  border-radius: 2px !important;
+  box-shadow: var(--shadow-xs);
+}
+.gantt_task_line.task-milestone .gantt_task_progress,
+.gantt_task_line.gantt_milestone .gantt_task_progress {
+  background: transparent !important;
+}
+
+/* -------- tarea sin fecha (backlog visible) -------- */
+.gantt_task_line.task-unscheduled {
+  background: var(--bg-sunken) !important;
+  border: 1.5px dashed var(--border-strong) !important;
+  opacity: .55;
+  box-shadow: none;
+}
+.gantt_task_line.task-unscheduled .gantt_task_progress {
+  background: var(--text-faint) !important;
+  opacity: .35;
+}
+
+/* -------- selección -------- */
+.gantt_task_line.task-selected {
+  box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px var(--accent-ring) !important;
+  filter: saturate(1.15);
+  z-index: 7;
+}
+
+/* -------- etiqueta dentro de la barra -------- */
+.gantt-bar-label {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 var(--sp-4);
+  font-family: var(--font-sans);
+  font-size: var(--fs-11);
+  font-weight: var(--fw-semibold);
+  line-height: inherit;
+  color: #fff;
+  text-shadow: 0 1px 2px oklch(0 0 0 / 0.28);
+}
+.gantt_task_line.t-pend .gantt-bar-label { color: var(--text-muted); text-shadow: none; }
+.gantt_task_line.task-stage .gantt-bar-label,
+.gantt_task_line.task-group .gantt-bar-label { color: var(--accent-text); text-shadow: none; }
+.gantt_task_line.task-unscheduled .gantt-bar-label { color: var(--text-muted); text-shadow: none; }
+
+/* ============================================================
+   HOY (today marker)
+   ============================================================ */
+.gantt_marker.today-marker {
+  background: var(--gantt-today) !important;
+  width: 2px;
+}
+.gantt_marker.today-marker .gantt_marker_content {
+  background: var(--c-late);
+  color: var(--text-on-accent);
+  font-family: var(--font-mono);
+  font-size: var(--fs-10);
+  font-weight: var(--fw-bold);
+  letter-spacing: .08em;
+  padding: 1px 5px;
+  border-radius: var(--r-xs);
+  top: 2px;
+}
+
+/* ============================================================
+   Weekend cells
+   ============================================================ */
+.gantt_scale_cell.weekend {
+  background: var(--gantt-weekend) !important;
+}
+.gantt_task_cell.weekend {
+  background: var(--gantt-weekend) !important;
+}
+
+/* ============================================================
+   Dependencias (links)
+   ============================================================ */
+.gantt_task_link .gantt_line_wrapper > div {
+  background: var(--gantt-dep-line) !important;
+}
+.gantt_task_link .gantt_link_arrow_right {
+  border-left-color: var(--gantt-dep-line) !important;
+}
+.gantt_task_link .gantt_link_arrow_left {
+  border-right-color: var(--gantt-dep-line) !important;
+}
+.gantt_task_link .gantt_link_arrow_up {
+  border-bottom-color: var(--gantt-dep-line) !important;
+}
+.gantt_task_link .gantt_link_arrow_down {
+  border-top-color: var(--gantt-dep-line) !important;
+}
+.gantt_task_link:hover .gantt_line_wrapper > div {
+  background: var(--accent) !important;
+}
+
+/* ============================================================
+   Status pill en la columna "Estado" del grid
+   (reemplaza el viejo .status-badge en el grid; usa la misma
+   pildora del rediseño + un punto extra cuando es manual)
+   ============================================================ */
+.gantt_cell .status {
+  margin-left: 6px;
+  vertical-align: middle;
+  cursor: default;
+}
+.gantt_cell .status.is-manual::after {
+  content: "";
+  display: inline-block;
+  width: 5px; height: 5px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: .8;
+  vertical-align: 2px;
+}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTheme } from '../lib/theme';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { ShortcutsModal } from './ShortcutsModal';
+import { Seg } from './ui/Seg';
 import type { Summary } from '../lib/types';
 
 interface AppShellProps {
@@ -22,7 +23,7 @@ interface AppShellProps {
 const money = new Intl.NumberFormat('es-MX', { notation: 'compact', style: 'currency', currency: 'MXN' });
 
 export function AppShell({ children, summary, userName, onLogout, onSearch, onOpenAdmin, breadcrumb, detailVisible, onToggleDetail, fullscreen }: AppShellProps) {
-  const { theme, toggle } = useTheme();
+  const { theme, toggle, density, setDensity } = useTheme();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 250);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -104,6 +105,18 @@ export function AppShell({ children, summary, userName, onLogout, onSearch, onOp
           />
           <kbd aria-hidden="true">⌘K</kbd>
         </label>
+        <div className="density-picker" aria-label="Densidad de fila">
+          <Seg
+            ariaLabel="Densidad de fila"
+            options={[
+              { value: 'comfortable', label: 'Holgada' },
+              { value: 'compact', label: 'Media' },
+              { value: 'dense', label: 'Compacta' },
+            ]}
+            value={density}
+            onChange={setDensity}
+          />
+        </div>
         <button
           className="theme-toggle"
           onClick={toggle}
@@ -150,7 +163,7 @@ export function AppShell({ children, summary, userName, onLogout, onSearch, onOp
             ))}
           </div>
         ) : (
-          <div className="kpi-summary">
+          <div className="kpi-summary" tabIndex={0} role="region" aria-label="Resumen de indicadores">
             {kpis.map((kpi, i) => (
               <span key={kpi.label} className={`kpi-pill kpi-pill--${kpi.tone}`}>
                 <em>{kpi.label}</em>

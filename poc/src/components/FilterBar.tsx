@@ -1,6 +1,17 @@
-import { useEffect, useState } from 'react';
+/**
+ * FilterBar — orden y comportamiento del rediseño Fase 3 (handoff §5.5):
+ *   Buscar → Estado (pills semáforo, siempre visibles) → Tipo (dropdown
+ *   exclusivo) → Más filtros (responsable/ejecutor/backlog/cerrados/matchScope).
+ *
+ * Lado derecho: contador de filtros activos + Limpiar + Nº elementos.
+ *
+ * Chips activos en línea para indicar de un vistazo qué filtros están
+ * aplicados (ej. "Resp: María", "Solo proyectos").
+ */
+import { useEffect, useRef, useState } from 'react';
 import { SearchableSelect } from './SearchableSelect';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { STATUS_LABELS, STATUS_SEMAPHORE } from '../lib/status';
 import type { NodeType } from '../lib/types';
 
 interface FilterBarProps {
@@ -27,6 +38,8 @@ interface FilterBarProps {
   onDateTo: (date: string) => void;
   activeOnly: boolean;
   onActiveOnly: (active: boolean) => void;
+  matchScope: 'all' | 'projects';
+  onMatchScope: (scope: 'all' | 'projects') => void;
   totalVisible: number;
   hasActiveFilters: boolean;
   onClear: () => void;
@@ -41,8 +54,6 @@ const nodeTypeLabels: Record<NodeType, string> = {
   task: 'Tarea',
   milestone: 'Hito',
 };
-const statusOptions = ['pendiente', 'en_progreso', 'completado', 'retrasado'] as const;
-const statusLabels: Record<string, string> = { pendiente: 'Pendiente', en_progreso: 'En progreso', completado: 'Completado', retrasado: 'Retrasado' };
 
 export function FilterBar({
   search, onSearch, typeFilter, onTypeFilter, showUnscheduled, onShowUnscheduled,
@@ -53,13 +64,11 @@ export function FilterBar({
   statusFilter, onStatusFilter,
   dateFrom, onDateFrom, dateTo, onDateTo,
   activeOnly, onActiveOnly,
+  matchScope, onMatchScope,
   totalVisible, hasActiveFilters, onClear, users,
 }: FilterBarProps) {
-  // Debounce: la busqueda escribe en estado local y solo llama onSearch tras 250ms
-  // de inactividad. Evita filtrar 1700+ nodos en cada keystroke.
+  // Debounce de la búsqueda: 250ms tras última pulsación.
   const [searchLocal, setSearchLocal] = useState(search);
-  // Patron React 19: sync de prop->state durante render con guard, en vez de
-  // useEffect+setState (que dispara renders en cascada).
   const [prevPropSearch, setPrevPropSearch] = useState(search);
   if (search !== prevPropSearch) {
     setPrevPropSearch(search);
@@ -68,141 +77,312 @@ export function FilterBar({
   const debouncedSearch = useDebouncedValue(searchLocal, 250);
   useEffect(() => { if (debouncedSearch !== search) onSearch(debouncedSearch); }, [debouncedSearch, search, onSearch]);
 
-  const projectName = projectFilter ? (projectOptions.find((p) => p.id === projectFilter)?.name ?? projectFilter) : null;
+  // Cuál menú/dropdown está abierto (excluyente).
+  type OpenMenu = null | 'tipo' | 'mas';
+  const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
+  const close = () => setOpenMenu(null);
+
+  // Cierra dropdowns al hacer click fuera o pulsar Escape.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!openMenu) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) close();
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [openMenu]);
+
   const responsibleName = responsibleFilter ? (users.find((u) => u.id === responsibleFilter)?.full_name ?? 'Usuario') : null;
   const assigneeName = assigneeFilter ? (users.find((u) => u.id === assigneeFilter)?.full_name ?? 'Usuario') : null;
+  const projectName = projectFilter ? (projectOptions.find((p) => p.id === projectFilter)?.name ?? projectFilter) : null;
 
-  // Cada chip es removible: label + handler que limpia ese filtro especifico.
-  const activeFilters: Array<{ key: string; label: string; clear: () => void }> = [];
-  if (search) activeFilters.push({ key: 'search', label: `Buscar: "${search}"`, clear: () => { setSearchLocal(''); onSearch(''); } });
-  if (typeFilter) activeFilters.push({ key: 'type', label: `Tipo: ${nodeTypeLabels[typeFilter]}`, clear: () => onTypeFilter(null) });
-  if (showUnscheduled) activeFilters.push({ key: 'unsched', label: 'Solo backlog', clear: () => onShowUnscheduled(false) });
-  if (projectName) activeFilters.push({ key: 'project', label: projectName, clear: () => onProjectFilter(null) });
-  if (responsibleName) activeFilters.push({ key: 'resp', label: `Resp: ${responsibleName}`, clear: () => onResponsibleFilter(null) });
-  if (assigneeName) activeFilters.push({ key: 'asig', label: `Asig: ${assigneeName}`, clear: () => onAssigneeFilter(null) });
-  if (statusFilter) activeFilters.push({ key: 'status', label: statusLabels[statusFilter] ?? statusFilter, clear: () => onStatusFilter(null) });
-  if (dateFrom) activeFilters.push({ key: 'from', label: `Desde ${dateFrom}`, clear: () => onDateFrom('') });
-  if (dateTo) activeFilters.push({ key: 'to', label: `Hasta ${dateTo}`, clear: () => onDateTo('') });
+  // Cuenta de filtros activos (mostrar badge a la derecha).
+  const activeCount =
+    (search ? 1 : 0) +
+    (statusFilter ? 1 : 0) +
+    (typeFilter ? 1 : 0) +
+    (responsibleFilter ? 1 : 0) +
+    (assigneeFilter ? 1 : 0) +
+    (projectFilter ? 1 : 0) +
+    (showUnscheduled ? 1 : 0) +
+    (showBacklogInGantt ? 0 : 1) +
+    (activeOnly ? 0 : 1) +
+    (matchScope === 'projects' ? 1 : 0) +
+    (dateFrom ? 1 : 0) +
+    (dateTo ? 1 : 0);
 
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreActive = !!(projectFilter || responsibleFilter || assigneeFilter || statusFilter || dateFrom || dateTo);
-  const advancedCount = [projectFilter, responsibleFilter, assigneeFilter, statusFilter, dateFrom && dateFrom, dateTo && dateTo].filter(Boolean).length;
+  // Badge sobre "Más filtros" — sólo cuenta los que viven ahí.
+  const moreCount =
+    (responsibleFilter ? 1 : 0) +
+    (assigneeFilter ? 1 : 0) +
+    (projectFilter ? 1 : 0) +
+    (showUnscheduled ? 1 : 0) +
+    (!showBacklogInGantt ? 1 : 0) +
+    (!activeOnly ? 1 : 0) +
+    (matchScope === 'projects' ? 1 : 0) +
+    (dateFrom ? 1 : 0) +
+    (dateTo ? 1 : 0);
 
   return (
-    <div className="filter-bar">
-      <input
-        className="filter-search filter-search--main"
-        type="search"
-        placeholder="Filtrar por nombre…"
-        aria-label="Filtrar nodos por nombre"
-        value={searchLocal}
-        onChange={(e) => setSearchLocal(e.target.value)}
-      />
-      {nodeTypes.map((type) => (
+    <div className="filterbar" ref={rootRef}>
+      {/* 1 · Buscar */}
+      <div className="fb-search">
+        <input
+          type="search"
+          placeholder="Filtrar por nombre…"
+          aria-label="Filtrar nodos por nombre"
+          value={searchLocal}
+          onChange={(e) => setSearchLocal(e.target.value)}
+        />
+      </div>
+
+      <span className="fb-divider" aria-hidden="true" />
+
+      {/* 2 · Estado (pills semáforo, siempre visibles) */}
+      <span className="fb-label">Estado</span>
+      <button
+        type="button"
+        className={'qfilter qf-all' + (!statusFilter ? ' is-on' : '')}
+        onClick={() => onStatusFilter(null)}
+      >
+        Todas
+      </button>
+      {STATUS_SEMAPHORE.map((s) => (
         <button
-          key={type}
-          className={`filter-chip-btn ${typeFilter === type ? 'is-active' : ''}`}
-          onClick={() => onTypeFilter(typeFilter === type ? null : type)}
+          key={s}
+          type="button"
+          className={`qfilter qf-${s}` + (statusFilter === s ? ' is-on' : '')}
+          onClick={() => onStatusFilter(statusFilter === s ? null : s)}
+          aria-pressed={statusFilter === s}
         >
-          {nodeTypeLabels[type]}
+          <span className="qf-dot" aria-hidden="true" />
+          {STATUS_LABELS[s]}
         </button>
       ))}
-      <button
-        className={`filter-chip-btn ${showUnscheduled ? 'is-active' : ''}`}
-        onClick={() => onShowUnscheduled(!showUnscheduled)}
-      >
-        Solo backlog
-      </button>
-      <button
-        className={`filter-chip-btn ${activeOnly ? 'is-active' : ''}`}
-        onClick={() => onActiveOnly(!activeOnly)}
-      >
-        Ocultar cerrados
-      </button>
-      <button
-        className={`filter-chip-btn ${showBacklogInGantt ? 'is-active' : ''}`}
-        onClick={() => onShowBacklogInGantt(!showBacklogInGantt)}
-        title="Mostrar tareas del backlog como barras grises en el Gantt"
-      >
-        Backlog visible
-      </button>
-      <button
-        className={`filter-more ${moreActive ? 'is-active' : ''}`}
-        onClick={() => setMoreOpen((v) => !v)}
-        aria-expanded={moreOpen}
-      >
-        Más filtros {moreActive ? `(${advancedCount})` : '▾'}
-      </button>
-      {activeFilters.length > 0 && (
-        <div className="filter-chips-row" role="list" aria-label="Filtros activos">
-          {activeFilters.map((f) => (
-            <span key={f.key} className="filter-chip" role="listitem">
-              {f.label}
-              <button
-                type="button"
-                className="filter-chip-remove"
-                aria-label={`Quitar filtro: ${f.label}`}
-                onClick={f.clear}
-              >×</button>
-            </span>
-          ))}
-        </div>
-      )}
-      <button className={`clear-button${!hasActiveFilters ? ' clear-button--idle' : ''}`} onClick={hasActiveFilters ? onClear : undefined} disabled={!hasActiveFilters}>Limpiar</button>
-      <span className="filter-count">{totalVisible} elementos</span>
 
-      {moreOpen && (
-        <div className="filter-more-popover" role="region" aria-label="Filtros avanzados">
-          <label>
-            <span>Proyecto</span>
-            <SearchableSelect
-              value={projectFilter ?? ''}
-              options={projectOptions.map((p) => ({ id: p.id, label: p.name }))}
-              placeholder="Todos"
-              ariaLabel="Filtrar por proyecto"
-              onChange={(id) => onProjectFilter(id)}
-            />
-          </label>
-          <label>
-            <span>Responsable</span>
-            <SearchableSelect
-              value={responsibleFilter ?? ''}
-              options={users.map((u) => ({ id: u.id, label: u.full_name ?? u.email ?? u.id }))}
-              placeholder="Cualquiera"
-              ariaLabel="Filtrar por responsable"
-              onChange={(id) => onResponsibleFilter(id)}
-            />
-          </label>
-          <label>
-            <span>Ejecutor</span>
-            <SearchableSelect
-              value={assigneeFilter ?? ''}
-              options={users.map((u) => ({ id: u.id, label: u.full_name ?? u.email ?? u.id }))}
-              placeholder="Cualquiera"
-              ariaLabel="Filtrar por ejecutor"
-              onChange={(id) => onAssigneeFilter(id)}
-            />
-          </label>
-          <label>
-            <span>Estado</span>
-            <select value={statusFilter ?? ''} onChange={(e) => onStatusFilter(e.target.value || null)}>
-              <option value="">Todos</option>
-              {statusOptions.map((s) => <option key={s} value={s}>{statusLabels[s]}</option>)}
-            </select>
-          </label>
-          <label>
-            <span>Desde</span>
-            <input type="date" value={dateFrom} onChange={(e) => onDateFrom(e.target.value)} />
-          </label>
-          <label>
-            <span>Hasta</span>
-            <input type="date" value={dateTo} onChange={(e) => onDateTo(e.target.value)} />
-          </label>
-          <div className="filter-more-actions">
-            <button onClick={() => setMoreOpen(false)}>Cerrar</button>
+      <span className="fb-divider" aria-hidden="true" />
+
+      {/* 3 · Tipo (dropdown exclusivo) */}
+      <div className="fb-menu-wrap">
+        <button
+          type="button"
+          className={'chip fb-chip' + (typeFilter ? ' is-on' : '')}
+          onClick={() => setOpenMenu(openMenu === 'tipo' ? null : 'tipo')}
+          aria-expanded={openMenu === 'tipo'}
+          aria-haspopup="menu"
+        >
+          Tipo: {typeFilter ? nodeTypeLabels[typeFilter] : 'Todos'} <span className="fb-chev" aria-hidden="true">▾</span>
+        </button>
+        {openMenu === 'tipo' && (
+          <div className="fb-menu" role="menu">
+            <button
+              type="button"
+              role="menuitemradio"
+              aria-checked={!typeFilter}
+              className={'fb-menu-item' + (!typeFilter ? ' is-on' : '')}
+              onClick={() => { onTypeFilter(null); close(); }}
+            >
+              Todos
+            </button>
+            {nodeTypes.map((t) => (
+              <button
+                key={t}
+                type="button"
+                role="menuitemradio"
+                aria-checked={typeFilter === t}
+                className={'fb-menu-item' + (typeFilter === t ? ' is-on' : '')}
+                onClick={() => { onTypeFilter(t); close(); }}
+              >
+                {nodeTypeLabels[t]}
+              </button>
+            ))}
           </div>
-        </div>
+        )}
+      </div>
+
+      {/* 4 · Más filtros */}
+      <div className="fb-menu-wrap">
+        <button
+          type="button"
+          className={'chip fb-chip' + (openMenu === 'mas' || moreCount > 0 ? ' is-on' : '')}
+          onClick={() => setOpenMenu(openMenu === 'mas' ? null : 'mas')}
+          aria-expanded={openMenu === 'mas'}
+          aria-haspopup="menu"
+        >
+          Más filtros{moreCount > 0 ? ` · ${moreCount}` : ''} <span className="fb-chev" aria-hidden="true">▾</span>
+        </button>
+        {openMenu === 'mas' && (
+          <div className="fb-menu fb-menu-wide" role="menu" aria-label="Filtros avanzados">
+            <div className="fb-menu-label">Proyecto</div>
+            <div className="fb-menu-field">
+              <SearchableSelect
+                value={projectFilter ?? ''}
+                options={projectOptions.map((p) => ({ id: p.id, label: p.name }))}
+                placeholder="Todos"
+                ariaLabel="Filtrar por proyecto"
+                onChange={(id) => onProjectFilter(id)}
+              />
+            </div>
+
+            <div className="fb-menu-label">Responsable</div>
+            <div className="fb-menu-field">
+              <SearchableSelect
+                value={responsibleFilter ?? ''}
+                options={users.map((u) => ({ id: u.id, label: u.full_name ?? u.email ?? u.id }))}
+                placeholder="Cualquiera"
+                ariaLabel="Filtrar por responsable"
+                onChange={(id) => onResponsibleFilter(id)}
+              />
+            </div>
+
+            <div className="fb-menu-label">Ejecutor</div>
+            <div className="fb-menu-field">
+              <SearchableSelect
+                value={assigneeFilter ?? ''}
+                options={users.map((u) => ({ id: u.id, label: u.full_name ?? u.email ?? u.id }))}
+                placeholder="Cualquiera"
+                ariaLabel="Filtrar por ejecutor"
+                onChange={(id) => onAssigneeFilter(id)}
+              />
+            </div>
+
+            <div className="fb-menu-sep" />
+            <div className="fb-menu-label">Vista</div>
+            <button
+              type="button"
+              role="menuitemcheckbox"
+              aria-checked={showUnscheduled}
+              className={'fb-menu-item fb-toggle' + (showUnscheduled ? ' is-on' : '')}
+              onClick={() => onShowUnscheduled(!showUnscheduled)}
+            >
+              <span>Solo backlog</span>
+              <span className="fb-toggle-mark" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              role="menuitemcheckbox"
+              aria-checked={showBacklogInGantt}
+              className={'fb-menu-item fb-toggle' + (showBacklogInGantt ? ' is-on' : '')}
+              onClick={() => onShowBacklogInGantt(!showBacklogInGantt)}
+              title="Mostrar tareas del backlog como barras tenues en el Gantt"
+            >
+              <span>Backlog visible</span>
+              <span className="fb-toggle-mark" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              role="menuitemcheckbox"
+              aria-checked={!activeOnly}
+              className={'fb-menu-item fb-toggle' + (!activeOnly ? ' is-on' : '')}
+              onClick={() => onActiveOnly(!activeOnly)}
+            >
+              <span>Mostrar cerrados</span>
+              <span className="fb-toggle-mark" aria-hidden="true" />
+            </button>
+
+            <div className="fb-menu-sep" />
+            <div className="fb-menu-label">Aplicar filtros a</div>
+            <button
+              type="button"
+              role="menuitemradio"
+              aria-checked={matchScope !== 'projects'}
+              className={'fb-menu-item' + (matchScope !== 'projects' ? ' is-on' : '')}
+              onClick={() => onMatchScope('all')}
+            >
+              Todos los niveles
+            </button>
+            <button
+              type="button"
+              role="menuitemradio"
+              aria-checked={matchScope === 'projects'}
+              className={'fb-menu-item' + (matchScope === 'projects' ? ' is-on' : '')}
+              onClick={() => onMatchScope('projects')}
+            >
+              Solo proyectos
+            </button>
+
+            <div className="fb-menu-sep" />
+            <div className="fb-menu-label">Rango de fechas</div>
+            <div className="fb-menu-grid">
+              <label className="fb-menu-inline">
+                <span>Desde</span>
+                <input type="date" value={dateFrom} onChange={(e) => onDateFrom(e.target.value)} />
+              </label>
+              <label className="fb-menu-inline">
+                <span>Hasta</span>
+                <input type="date" value={dateTo} onChange={(e) => onDateTo(e.target.value)} />
+              </label>
+            </div>
+
+            <div className="fb-menu-actions">
+              <button type="button" className="btn btn-ghost btn-sm" onClick={close}>Cerrar</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Chips activos en línea (los que destacan visualmente) */}
+      {responsibleName && (
+        <button
+          type="button"
+          className="chip is-on fb-active-chip"
+          onClick={() => onResponsibleFilter(null)}
+          title={`Quitar filtro Responsable: ${responsibleName}`}
+        >
+          Resp: {responsibleName} <span className="fb-chip-x" aria-hidden="true">×</span>
+        </button>
       )}
+      {assigneeName && (
+        <button
+          type="button"
+          className="chip is-on fb-active-chip"
+          onClick={() => onAssigneeFilter(null)}
+          title={`Quitar filtro Ejecutor: ${assigneeName}`}
+        >
+          Asig: {assigneeName} <span className="fb-chip-x" aria-hidden="true">×</span>
+        </button>
+      )}
+      {projectName && (
+        <button
+          type="button"
+          className="chip is-on fb-active-chip"
+          onClick={() => onProjectFilter(null)}
+          title={`Quitar filtro Proyecto: ${projectName}`}
+        >
+          {projectName} <span className="fb-chip-x" aria-hidden="true">×</span>
+        </button>
+      )}
+      {matchScope === 'projects' && (
+        <button
+          type="button"
+          className="chip is-on fb-active-chip"
+          onClick={() => onMatchScope('all')}
+          title="Aplicar filtros a todos los niveles"
+        >
+          Solo proyectos <span className="fb-chip-x" aria-hidden="true">×</span>
+        </button>
+      )}
+
+      <div className="fb-spacer" />
+
+      {activeCount > 0 && (
+        <span className="fb-badge">{activeCount} {activeCount === 1 ? 'filtro activo' : 'filtros activos'}</span>
+      )}
+      <button
+        type="button"
+        className={'fb-clear' + (!hasActiveFilters ? ' is-idle' : '')}
+        onClick={hasActiveFilters ? onClear : undefined}
+        disabled={!hasActiveFilters}
+      >
+        Limpiar
+      </button>
+      <span className="fb-count">{totalVisible} ELEMENTOS</span>
     </div>
   );
 }

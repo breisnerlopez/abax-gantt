@@ -1,0 +1,271 @@
+/* ============================================================
+   ABAX Gantt — Modales (Fase 6 del rediseño)
+   Reskin de:
+   - .modal-backdrop / .modal-overlay (oscurecido con blur)
+   - .create-dialog (Nuevo proyecto / Crear nodo hijo)
+   - .shortcuts-modal (atajos de teclado)
+   - .edit-field / .check-field / .field-grid (controles de formulario)
+   ============================================================ */
+
+/* ===================== Backdrop ===================== */
+.modal-backdrop,
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-8);
+  background: oklch(0.2 0.02 270 / 0.45);
+  backdrop-filter: blur(2px);
+}
+[data-theme="dark"] .modal-backdrop,
+[data-theme="dark"] .modal-overlay {
+  background: oklch(0 0 0 / 0.55);
+}
+
+/* ===================== Modal contenedor ===================== */
+.create-dialog,
+.shortcuts-modal {
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.shortcuts-modal { max-width: 560px; }
+
+.create-dialog header,
+.shortcuts-modal .shortcuts-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  padding: var(--sp-6);
+  border-bottom: 1px solid var(--border);
+}
+.create-dialog header p,
+.shortcuts-modal .shortcuts-header p {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--fs-11);
+  font-weight: var(--fw-bold);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.create-dialog header h2,
+.shortcuts-modal .shortcuts-header h2 {
+  margin: 0;
+  font-size: var(--fs-18);
+  font-weight: var(--fw-bold);
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+.create-dialog header button,
+.shortcuts-modal .modal-close {
+  display: grid;
+  place-items: center;
+  width: 28px; height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+}
+.create-dialog header button:hover,
+.shortcuts-modal .modal-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-strong);
+}
+.create-dialog header button:focus-visible,
+.shortcuts-modal .modal-close:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+/* ---- CreateDialog body ---- */
+.create-dialog > .edit-field,
+.create-dialog > .check-field,
+.create-dialog > .field-grid,
+.create-dialog > .form-error {
+  padding: 0 var(--sp-6);
+}
+.create-dialog > .edit-field { padding-top: var(--sp-5); }
+.create-dialog > .check-field { padding-top: var(--sp-4); }
+.create-dialog > .field-grid { padding-top: var(--sp-4); }
+.create-dialog > .form-error {
+  padding-top: var(--sp-3);
+  color: var(--c-late-text);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-semibold);
+}
+.create-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-4);
+  padding: var(--sp-5) var(--sp-6);
+  margin-top: var(--sp-6);
+  border-top: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+.create-dialog footer button {
+  min-height: 34px;
+  padding: 0 var(--sp-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: var(--fs-13);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+}
+.create-dialog footer button:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+.create-dialog footer .primary-button {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: var(--fw-semibold);
+  box-shadow: var(--shadow-xs);
+}
+.create-dialog footer .primary-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+.create-dialog footer .primary-button:disabled { opacity: .55; cursor: not-allowed; }
+
+/* ---- Fields del formulario ---- */
+.edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.edit-field span {
+  font-size: var(--fs-11);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.edit-field input,
+.edit-field textarea,
+.edit-field select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: var(--fs-14);
+  outline: none;
+  transition: border-color .12s, box-shadow .12s;
+}
+.edit-field textarea {
+  min-height: 84px;
+  padding: var(--sp-4);
+  resize: vertical;
+  line-height: 1.5;
+}
+.edit-field input:focus,
+.edit-field textarea:focus,
+.edit-field select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.edit-field input::placeholder,
+.edit-field textarea::placeholder { color: var(--text-faint); }
+.edit-field input:disabled,
+.edit-field textarea:disabled,
+.edit-field select:disabled {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.check-field {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-13);
+  color: var(--text);
+}
+.check-field input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-5);
+}
+
+/* ===================== ShortcutsModal body ===================== */
+.shortcuts-modal .shortcuts-body {
+  padding: var(--sp-5) var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.shortcuts-modal .shortcuts-group h3 {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-11);
+  font-weight: var(--fw-bold);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.shortcuts-modal .shortcuts-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.shortcuts-modal .shortcuts-group li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: var(--fs-13);
+  color: var(--text-strong);
+}
+.shortcuts-modal .shortcuts-group li:last-child { border-bottom: 0; }
+.shortcuts-modal .shortcut-keys {
+  display: flex;
+  gap: var(--sp-2);
+}
+.shortcuts-modal kbd {
+  display: inline-flex; align-items: center;
+  font-family: var(--font-mono); font-size: var(--fs-11);
+  padding: 2px 7px;
+  border-radius: var(--r-xs);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.shortcuts-modal .shortcuts-footer {
+  padding: var(--sp-5) var(--sp-6);
+  border-top: 1px solid var(--border);
+  background: var(--bg-subtle);
+  font-size: var(--fs-12);
+  color: var(--text-muted);
+}
+.shortcuts-modal .shortcuts-footer kbd {
+  font-family: var(--font-mono); font-size: var(--fs-11);
+  padding: 1px 5px;
+  border-radius: var(--r-xs);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-strong);
+}

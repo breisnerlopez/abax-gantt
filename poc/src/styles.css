@@ -6,39 +6,10 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-:root {
-  --bg: #fcfcfd;
-  --bg-soft: #f6f7f9;
-  --bg-sunken: #f1f2f5;
-  --surface: #ffffff;
-  --border: #e5e6eb;
-  --border-strong: #d2d4db;
-  --divider: #edeef1;
-  --text: #0e1116;
-  --text-secondary: #5b6170;
-  --text-tertiary: #8a8f9c;
-  --accent: #4f5bd5;
-  --accent-hover: #4049bd;
-  --accent-soft: #eef0fe;
-  --accent-soft-2: #dce0fc;
-  --accent-text: #2c36a8;
-  --success: #16a36a;
-  --success-soft: #ddf1e6;
-  --warning: #dc9a2a;
-  --warning-soft: #faedd9;
-  --danger: #dc3645;
-  --danger-soft: #fbe0e2;
-  --info: #3d7cf0;
-  --info-soft: #e6eefd;
-  --proj-blue: #3d7cf0;
-  --proj-violet: #7c5ce0;
-  --proj-green: #2ba577;
-  --proj-amber: #dd8a2e;
-  --proj-teal: #0ea5a5;
-  --shadow-xs: 0 1px 2px rgba(13,17,23,.04);
-  --shadow-sm: 0 1px 3px rgba(13,17,23,.06), 0 0 0 1px rgba(13,17,23,.04);
-  --shadow: 0 4px 16px rgba(13,17,23,.08), 0 0 0 1px rgba(13,17,23,.05);
-}
+/* Tokens (light + dark + density) viven en src/styles/tokens.css y se
+   importan desde main.tsx. Los nombres viejos (--bg, --surface, --text,
+   --accent, …) siguen disponibles como aliases para no romper este CSS
+   mientras los componentes migran al sistema nuevo. */
 
 html, body, #root { height: 100%; margin: 0; }
 body {
@@ -180,18 +151,9 @@ kbd { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; fo
 .type-dot--stage { border: 1.5px dashed var(--proj-violet); background: var(--accent-soft); }
 .type-dot--group { background: var(--proj-teal); }
 .type-dot--milestone { transform: rotate(45deg); background: var(--warning); }
-.status-badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; margin-left: 6px; vertical-align: middle; }
-.status-badge--pendiente { background: var(--border); color: var(--text-tertiary); }
-.status-badge--en_progreso { background: var(--accent-soft); color: var(--accent); }
-.status-badge--completado { background: #dcfce7; color: #166534; }
-.status-badge--retrasado { background: #fef2f2; color: #b91c1c; }
-.status-badge--cancelado { background: #f3f4f6; color: #6b7280; text-decoration: line-through; }
-.status-badge--en_pausa { background: #fef9c3; color: #a16207; }
-.status-badge--en_revision { background: #ede9fe; color: #6b21a8; }
-/* Marca de "estado manual" — un punto a la izquierda indica que el valor lo fijo
-   el usuario y no se recalcula automaticamente desde progreso/fecha. Sin punto
-   = automatico. Hace visible la diferencia cuando el computed coincide. */
-.status-badge--manual::before { content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%; margin-right: 4px; background: currentColor; vertical-align: 1px; opacity: .8; }
+/* .status-badge* reemplazado por .status (primitives.css) en GanttCanvas y
+   DetailPanel desde el rediseño Fase 2/4. Marcador "manual" vive ahora en
+   .status.is-manual::after (gantt-skin.css) y .detail-skin. */
 
 /* Editor inline del Gantt (DHTMLX usa <select> y <input> nativos en el grid).
    Sin estos overrides se ven con el chrome por defecto del navegador y rompen
@@ -293,39 +255,12 @@ kbd { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; fo
 .confirm-dialog .danger-button { border-color: var(--danger); background: var(--danger); color: #fff; }
 .confirm-dialog button:disabled { opacity: .65; cursor: progress; }
 
-/* FilterBar compacta — chips inline + "Más filtros" para overflow */
-.filter-bar { position: relative; min-height: 38px; flex: none; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 6px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
-.filter-search--main { flex: 0 1 220px; height: 26px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-soft); color: var(--text); font-size: 12.5px; outline: none; }
-.filter-search--main:focus { border-color: var(--accent); background: var(--surface); }
-.filter-chip-btn { height: 26px !important; padding: 0 10px !important; border: 1px solid var(--border) !important; border-radius: 13px !important; background: var(--surface) !important; color: var(--text-secondary) !important; font-size: 12px !important; font-weight: 500 !important; cursor: pointer; }
-.filter-chip-btn:hover { background: var(--bg-soft) !important; color: var(--text) !important; }
-.filter-chip-btn.is-active { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
-.filter-more { height: 26px !important; padding: 0 10px !important; border: 1px dashed var(--border) !important; border-radius: 13px !important; background: transparent !important; color: var(--text-secondary) !important; font-size: 12px !important; }
-.filter-more:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
-.filter-more.is-active { border-color: var(--accent) !important; border-style: solid !important; color: var(--accent) !important; font-weight: 600; }
-.filter-chips-row { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; }
-.filter-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 8px; background: var(--accent-soft); color: var(--accent-text); border-radius: 11px; font-size: 11.5px; font-weight: 500; }
-.filter-chip-remove { display: inline-grid; place-items: center; width: 16px; height: 16px; border: 0; border-radius: 50%; background: transparent; color: var(--accent-text); font-size: 14px; line-height: 1; cursor: pointer; padding: 0; opacity: .7; }
-.filter-chip-remove:hover, .filter-chip-remove:focus-visible { background: var(--accent); color: #fff; opacity: 1; outline: none; }
+/* FilterBar y export menu viven ahora en src/styles/filterbar.css y
+   src/styles/chrome-skin.css (rediseño Fase 3 y 6 respectivamente).
+   Aquí solo se conservan utilidades accesibles compartidas. */
+
 /* Texto visualmente oculto pero accesible para lectores de pantalla. */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-.clear-button { height: 22px !important; padding: 0 8px !important; border: 0 !important; background: transparent !important; color: var(--text-tertiary) !important; font-size: 11.5px !important; text-decoration: underline; }
-.clear-button:hover { color: var(--danger) !important; background: transparent !important; }
-.filter-count { margin-left: auto; color: var(--text-tertiary); font-size: 11.5px; }
-
-.filter-more-popover { position: absolute; top: calc(100% + 4px); right: 12px; z-index: 30; min-width: 320px; padding: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
-.filter-more-popover label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-secondary); }
-.filter-more-popover label span { font-weight: 600; letter-spacing: .03em; text-transform: uppercase; font-size: 10.5px; color: var(--text-tertiary); }
-.filter-more-popover select, .filter-more-popover input { height: 28px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 12.5px; }
-.filter-more-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; padding-top: 6px; border-top: 1px solid var(--divider); }
-.filter-more-actions button { height: 26px; padding: 0 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 12px; }
-
-/* Toolbar export menu */
-.export-menu { position: relative; }
-.export-menu > button { height: 28px; padding: 0 10px; }
-.export-menu-popover { position: absolute; top: calc(100% + 4px); right: 0; z-index: 30; min-width: 120px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); display: flex; flex-direction: column; }
-.export-menu-popover button { width: 100%; height: 30px !important; padding: 0 10px !important; border: 0 !important; background: transparent !important; text-align: left !important; font-size: 12.5px !important; border-radius: 4px !important; }
-.export-menu-popover button:hover { background: var(--bg-soft) !important; }
 
 /* Status pills admin */
 .status-pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
@@ -358,19 +293,11 @@ kbd { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; fo
 .gantt_tree_icon { width: 18px !important; height: 18px !important; }
 .gantt_row .gantt_tree_content { padding-left: 4px; }
 .gantt_cell { color: var(--text-secondary); }
-.gantt_task_line { border: 0 !important; border-radius: 5px; background: var(--proj-blue) !important; }
-.gantt_task_progress { background: rgba(255,255,255,.35) !important; }
-.gantt-bar-label { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 7px; color: #fff; font-size: 11px; font-weight: 700; line-height: inherit; text-shadow: 0 1px 2px rgba(0,0,0,.28); }
-.task-project { background: linear-gradient(180deg, var(--accent), #2c36a8) !important; }
-.task-stage { border: 1.5px dashed var(--proj-violet) !important; background: repeating-linear-gradient(45deg, #efeafb 0 6px, #dce0fc 6px 12px) !important; }
-.task-group { background: var(--proj-teal) !important; opacity: .82; }
-.task-milestone { background: var(--warning) !important; border-radius: 3px !important; }
-.task-unscheduled { background: #d4d6dc !important; opacity: .55; border: 1.5px dashed #a0a3b0 !important; }
-.task-unscheduled .gantt_task_progress { background: rgba(0,0,0,.08) !important; }
-.task-unscheduled .gantt-bar-label { color: var(--text-secondary); text-shadow: none; }
+/* .gantt_task_line / .task-* / .gantt-bar-label viven ahora en
+   src/styles/gantt-skin.css (rediseño Fase 2). Aquí se conserva sólo lo
+   propio de las FILAS del grid (row-unscheduled, row-selected, etc.). */
 .row-unscheduled .gantt_tree_content { color: var(--text-tertiary); font-style: italic; }
 .row-unscheduled .gantt_cell { color: var(--text-tertiary); }
-.task-selected { box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px rgba(77, 91, 216, .22) !important; filter: saturate(1.18) contrast(1.06); z-index: 4; }
 .row-selected, .row-selected.odd, .gantt_task_row.gantt_selected, .gantt_row.gantt_selected { background: color-mix(in srgb, var(--accent-soft) 70%, var(--surface)) !important; box-shadow: inset 3px 0 0 var(--accent); }
 .row-selected .gantt_tree_content { color: var(--accent) !important; font-weight: 800; }
 .row-project .gantt_tree_content { font-weight: 750; }
@@ -454,30 +381,9 @@ kbd { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; fo
 .theme-toggle { width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-secondary); font-size: 14px; display: grid; place-items: center; line-height: 1; }
 .theme-toggle:hover { background: var(--bg-soft); }
 
-[data-theme="dark"] {
-  --bg: #0e1116;
-  --bg-soft: #171a21;
-  --bg-sunken: #1e222a;
-  --surface: #171a21;
-  --border: #2a2e38;
-  --border-strong: #3a3e48;
-  --divider: #22252e;
-  --text: #edf0f5;
-  --text-secondary: #949aab;
-  --text-tertiary: #6b7080;
-  --accent: #6d77e4;
-  --accent-hover: #858eec;
-  --accent-soft: #1e2240;
-  --accent-soft-2: #2a3060;
-  --accent-text: #a5abf5;
-  --success-soft: #14261c;
-  --warning-soft: #2b2414;
-  --danger-soft: #2b1418;
-  --info-soft: #141e2b;
-  --shadow-xs: 0 1px 2px rgba(0,0,0,.35);
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.45), 0 0 0 1px rgba(0,0,0,.3);
-  --shadow: 0 4px 16px rgba(0,0,0,.45), 0 0 0 1px rgba(0,0,0,.25);
-}
+/* El bloque [data-theme="dark"] con las nuevas variables vive en
+   src/styles/tokens.css. Aquí solo quedan los overrides estructurales
+   específicos del dark mode que aplican sobre componentes existentes. */
 
 [data-theme="dark"] .auth-screen { background: radial-gradient(circle at top left, var(--accent-soft), transparent 34%), var(--bg); }
 

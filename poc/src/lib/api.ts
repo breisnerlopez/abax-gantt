@@ -1,4 +1,4 @@
-import type { ApiEnvelope, Attachment, BudgetReport, Dependency, DependencyType, NodeType, PortfolioData, Profile, Project, Summary, TaskAssignee, WbsNode } from './types';
+import type { ApiEnvelope, Attachment, BudgetReport, Dependency, DependencyType, NodeType, PortfolioData, Profile, Project, Summary, TaskAssignee, Team, WbsNode } from './types';
 import { config } from './runtimeConfig';
 
 const API_BASE_URL = config.apiBaseUrl;
@@ -142,20 +142,43 @@ export async function loadPortfolio(token: string, filters?: PortfolioFilters): 
   if (filters?.active_only) queryParams.set('active_only', 'true');
   const filterStr = queryParams.toString();
 
-  const [projects, users, nodes, backlog, dependencies, summary] = await Promise.all([
+  // Rediseño Fase 9: fetch de `teams` para habilitar agrupación por equipo en
+  // el portafolio. Es optional para que el frontend no rompa si la migración
+  // 00011 aún no se ha aplicado en el entorno (devuelve [] y groupBy=team se
+  // comporta como groupBy=none).
+  const [projects, users, teams, nodes, backlog, dependencies, summary] = await Promise.all([
     apiGet<Project[]>('api/projects', token),
     optionalApiGet<Profile[]>('api/users', token, []),
+    optionalApiGet<Team[]>('api/teams', token, []),
     apiGet<WbsNode[]>(`api/wbs${filterStr ? `?${filterStr}` : ''}`, token),
     apiGet<WbsNode[]>(`api/backlog${filterStr ? `?${filterStr}` : ''}`, token),
     apiGet<Dependency[]>('api/dependencies', token),
     apiGet<Summary>('api/summary', token),
   ]);
 
-  return { projects, users, nodes, backlog, dependencies, summary };
+  return { projects, users, teams, nodes, backlog, dependencies, summary };
 }
 
-export async function createProject(token: string, name: string) {
-  return apiSend<Project & { root_node: WbsNode }>('api/projects', token, 'POST', { name });
+export async function createProject(token: string, input: { name: string; team_id?: string | null }) {
+  return apiSend<Project & { root_node: WbsNode }>('api/projects', token, 'POST', input);
+}
+
+/* ---------------------------------------------------------------------------
+ * Teams (admin) — Fase 9 + creación desde UI.
+ * GET público (lista activos) vive en api/teams; el detalle admin en
+ * api/admin/teams. Devolvemos la lista completa para que el admin pueda
+ * activar/desactivar.
+ * ------------------------------------------------------------------------- */
+export async function listAdminTeams(token: string) {
+  return apiGet<Team[]>('api/admin/teams', token);
+}
+
+export async function createTeam(token: string, input: { name: string; description?: string | null; color?: string | null; lead_id?: string | null }) {
+  return apiSend<Team>('api/admin/teams', token, 'POST', input);
+}
+
+export async function updateTeam(token: string, id: string, patch: Partial<Pick<Team, 'name' | 'description' | 'color' | 'lead_id' | 'is_active'>>) {
+  return apiSend<Team>(`api/admin/teams/${id}`, token, 'PATCH', patch);
 }
 
 export async function createWbsNode(token: string, input: { parent_id: string; name: string; type: NodeType; start_date?: string | null; end_date?: string | null }) {

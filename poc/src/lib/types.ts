@@ -7,6 +7,15 @@ export interface ProjectType {
   color: string | null;
 }
 
+export interface Team {
+  id: string;
+  name: string;
+  description?: string | null;
+  color: string;
+  lead_id: string | null;
+  is_active?: boolean;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -14,6 +23,8 @@ export interface Project {
   status: string;
   budget_total: number | null;
   project_types?: ProjectType | null;
+  team_id?: string | null;
+  teams?: Pick<Team, 'id' | 'name' | 'color' | 'lead_id'> | null;
 }
 
 export interface TaskAssignee {
@@ -110,6 +121,7 @@ export interface ApiEnvelope<T> {
 export interface PortfolioData {
   projects: Project[];
   users: Profile[];
+  teams: Team[];
   nodes: WbsNode[];
   backlog: WbsNode[];
   dependencies: Dependency[];

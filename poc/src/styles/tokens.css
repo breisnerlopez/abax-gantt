@@ -1,0 +1,247 @@
+/* ============================================================
+   ABAX Gantt — Design Tokens
+   Light + Dark. Indigo accent (oklch). Semaphore states.
+   Source: handoff diseño 2026-06-02. Ver docs HANDOFF.md.
+
+   La sección final ("compat aliases") mapea los nombres viejos
+   de tokens (--bg, --text, --accent, --success…) al nuevo
+   vocabulario para no romper styles.css existente. A medida que
+   los componentes migran al sistema nuevo, los aliases se podrán
+   ir eliminando.
+   ============================================================ */
+
+:root {
+  /* ---- Type ---- */
+  --font-sans: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --fs-10: 10px;
+  --fs-11: 11px;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-15: 15px;
+  --fs-16: 16px;
+  --fs-18: 18px;
+  --fs-22: 22px;
+  --fs-28: 28px;
+  --fs-34: 34px;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* ---- Spacing (4px base) ---- */
+  --sp-1: 2px;
+  --sp-2: 4px;
+  --sp-3: 6px;
+  --sp-4: 8px;
+  --sp-5: 12px;
+  --sp-6: 16px;
+  --sp-7: 20px;
+  --sp-8: 24px;
+  --sp-9: 32px;
+  --sp-10: 40px;
+  --sp-11: 48px;
+  --sp-12: 64px;
+
+  /* ---- Radii ---- */
+  --r-xs: 3px;
+  --r-sm: 5px;
+  --r-md: 7px;
+  --r-lg: 10px;
+  --r-xl: 14px;
+  --r-pill: 999px;
+
+  /* ---- Row density (overridden by [data-density]) ---- */
+  --row-h: 36px;
+
+  /* ---- Accent: Indigo scale (oklch) ---- */
+  --indigo-50:  oklch(0.972 0.014 277);
+  --indigo-100: oklch(0.942 0.030 277);
+  --indigo-200: oklch(0.892 0.055 277);
+  --indigo-300: oklch(0.818 0.090 277);
+  --indigo-400: oklch(0.715 0.140 277);
+  --indigo-500: oklch(0.620 0.180 277);
+  --indigo-600: oklch(0.548 0.196 277);
+  --indigo-700: oklch(0.478 0.180 277);
+  --indigo-800: oklch(0.410 0.150 277);
+  --indigo-900: oklch(0.345 0.115 277);
+
+  /* ---- Semaphore states (hue-harmonized) ----
+     completado = green | en_progreso = blue | retrasado = red | pendiente = gray.
+     El azul de "en progreso" (hue 240) está deliberadamente separado del índigo
+     del acento (hue 277) para no confundir estado con interacción. */
+  --c-done:        oklch(0.605 0.150 152);
+  --c-done-soft:   oklch(0.945 0.045 152);
+  --c-done-text:   oklch(0.430 0.110 152);
+  --c-done-border: oklch(0.860 0.070 152);
+
+  --c-prog:        oklch(0.620 0.150 240);
+  --c-prog-soft:   oklch(0.950 0.040 240);
+  --c-prog-text:   oklch(0.470 0.120 240);
+  --c-prog-border: oklch(0.860 0.060 240);
+
+  --c-late:        oklch(0.585 0.205 25);
+  --c-late-soft:   oklch(0.952 0.035 25);
+  --c-late-text:   oklch(0.480 0.180 25);
+  --c-late-border: oklch(0.870 0.060 25);
+
+  --c-pend:        oklch(0.680 0.018 270);
+  --c-pend-soft:   oklch(0.955 0.004 270);
+  --c-pend-text:   oklch(0.500 0.012 270);
+  --c-pend-border: oklch(0.890 0.006 270);
+
+  /* Milestone / accent warm (go-live, hito) */
+  --c-milestone:      oklch(0.730 0.165 70);
+  --c-milestone-soft: oklch(0.955 0.040 70);
+
+  /* ---- Surfaces / text / borders (LIGHT) ---- */
+  --bg-canvas:     oklch(0.985 0.003 270);
+  --bg-surface:    oklch(1 0 0);
+  --bg-subtle:     oklch(0.972 0.004 270);
+  --bg-sunken:     oklch(0.958 0.005 270);
+  --bg-hover:      oklch(0.962 0.006 277);
+  --bg-active:     var(--indigo-50);
+
+  --border:        oklch(0.918 0.005 270);
+  --border-soft:   oklch(0.945 0.004 270);
+  --border-strong: oklch(0.858 0.007 270);
+
+  --text-strong:   oklch(0.235 0.012 270);
+  --text:          oklch(0.345 0.012 270);
+  --text-muted:    oklch(0.545 0.012 270);
+  --text-faint:    oklch(0.670 0.010 270);
+  --text-on-accent: oklch(0.99 0.005 277);
+
+  --accent:        var(--indigo-600);
+  --accent-hover:  var(--indigo-700);
+  --accent-soft:   var(--indigo-50);
+  --accent-soft-2: var(--indigo-100);
+  --accent-text:   var(--indigo-700);
+  --accent-ring:   oklch(0.620 0.180 277 / 0.35);
+
+  /* Gantt-specific (light) */
+  --gantt-grid-line:   oklch(0.935 0.004 270);
+  --gantt-weekend:     oklch(0.972 0.004 270);
+  --gantt-today:       oklch(0.585 0.205 25 / 0.55);
+  --gantt-summary:     var(--indigo-600);
+  --gantt-summary-2:   var(--indigo-400);
+  --gantt-dep-line:    oklch(0.700 0.012 270);
+  --gantt-bar-track:   oklch(0.930 0.006 270);
+
+  --shadow-xs: 0 1px 2px oklch(0.3 0.02 270 / 0.06);
+  --shadow-sm: 0 1px 2px oklch(0.3 0.02 270 / 0.08), 0 1px 3px oklch(0.3 0.02 270 / 0.05);
+  --shadow-md: 0 2px 6px oklch(0.3 0.02 270 / 0.08), 0 4px 12px oklch(0.3 0.02 270 / 0.07);
+  --shadow-lg: 0 8px 24px oklch(0.3 0.02 270 / 0.12), 0 2px 6px oklch(0.3 0.02 270 / 0.07);
+  --shadow-panel: -8px 0 24px oklch(0.3 0.02 270 / 0.07);
+
+  /* ============================================================
+     COMPAT ALIASES — nombres viejos → vocabulario nuevo.
+     Eliminar a medida que cada componente migra al sistema nuevo.
+     ============================================================ */
+  --bg:               var(--bg-canvas);
+  --bg-soft:          var(--bg-subtle);
+  --surface:          var(--bg-surface);
+  --divider:          var(--border-soft);
+  --text-secondary:   var(--text-muted);
+  --text-tertiary:    var(--text-faint);
+
+  --success:          var(--c-done);
+  --success-soft:     var(--c-done-soft);
+  --warning:          var(--c-milestone);
+  --warning-soft:     var(--c-milestone-soft);
+  --danger:           var(--c-late);
+  --danger-soft:      var(--c-late-soft);
+  --info:             var(--c-prog);
+  --info-soft:        var(--c-prog-soft);
+
+  /* Proyecto / tag colors antes inline */
+  --proj-blue:        var(--c-prog);
+  --proj-violet:      var(--accent);
+  --proj-green:       var(--c-done);
+  --proj-amber:       var(--c-milestone);
+  --proj-teal:        oklch(0.620 0.110 200);
+
+  --shadow:           var(--shadow-md);
+}
+
+/* ============= DARK THEME ============= */
+[data-theme="dark"] {
+  --bg-canvas:     oklch(0.168 0.013 270);
+  --bg-surface:    oklch(0.205 0.015 270);
+  --bg-subtle:     oklch(0.235 0.016 270);
+  --bg-sunken:     oklch(0.150 0.012 270);
+  --bg-hover:      oklch(0.262 0.020 277);
+  --bg-active:     oklch(0.300 0.060 277);
+
+  --border:        oklch(0.305 0.016 270);
+  --border-soft:   oklch(0.262 0.014 270);
+  --border-strong: oklch(0.380 0.020 270);
+
+  --text-strong:   oklch(0.965 0.005 270);
+  --text:          oklch(0.885 0.008 270);
+  --text-muted:    oklch(0.680 0.012 270);
+  --text-faint:    oklch(0.560 0.012 270);
+  --text-on-accent: oklch(0.99 0.005 277);
+
+  --accent:        var(--indigo-500);
+  --accent-hover:  var(--indigo-400);
+  --accent-soft:   oklch(0.300 0.070 277);
+  --accent-soft-2: oklch(0.360 0.090 277);
+  --accent-text:   oklch(0.800 0.110 277);
+  --accent-ring:   oklch(0.620 0.180 277 / 0.45);
+
+  /* States: solid vivid; soft = translucent tint */
+  --c-done-soft:   oklch(0.605 0.150 152 / 0.18);
+  --c-done-text:   oklch(0.800 0.130 152);
+  --c-done-border: oklch(0.605 0.150 152 / 0.40);
+
+  --c-prog-soft:   oklch(0.620 0.150 240 / 0.20);
+  --c-prog-text:   oklch(0.800 0.120 240);
+  --c-prog-border: oklch(0.620 0.150 240 / 0.42);
+
+  --c-late-soft:   oklch(0.585 0.205 25 / 0.20);
+  --c-late-text:   oklch(0.800 0.150 30);
+  --c-late-border: oklch(0.585 0.205 25 / 0.45);
+
+  --c-pend:        oklch(0.560 0.014 270);
+  --c-pend-soft:   oklch(0.560 0.014 270 / 0.20);
+  --c-pend-text:   oklch(0.720 0.012 270);
+  --c-pend-border: oklch(0.560 0.014 270 / 0.40);
+
+  --c-milestone-soft: oklch(0.730 0.165 70 / 0.18);
+
+  --gantt-grid-line:   oklch(0.270 0.014 270);
+  --gantt-weekend:     oklch(0.190 0.013 270);
+  --gantt-today:       oklch(0.640 0.190 25 / 0.6);
+  --gantt-summary:     var(--indigo-500);
+  --gantt-summary-2:   var(--indigo-300);
+  --gantt-dep-line:    oklch(0.470 0.016 270);
+  --gantt-bar-track:   oklch(0.300 0.014 270);
+
+  --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.30);
+  --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.40);
+  --shadow-md: 0 4px 12px oklch(0 0 0 / 0.45);
+  --shadow-lg: 0 12px 32px oklch(0 0 0 / 0.55);
+  --shadow-panel: -8px 0 28px oklch(0 0 0 / 0.40);
+
+  /* compat aliases (refresh — overrides para los semantic) */
+  --bg:               var(--bg-canvas);
+  --bg-soft:          var(--bg-subtle);
+  --surface:          var(--bg-surface);
+  --divider:          var(--border-soft);
+  --text-secondary:   var(--text-muted);
+  --text-tertiary:    var(--text-faint);
+  --success-soft:     var(--c-done-soft);
+  --warning-soft:     var(--c-milestone-soft);
+  --danger-soft:      var(--c-late-soft);
+  --info-soft:        var(--c-prog-soft);
+  --shadow:           var(--shadow-md);
+}
+
+/* ============= DENSITY ============= */
+[data-density="comfortable"] { --row-h: 42px; }
+[data-density="compact"]     { --row-h: 36px; }
+[data-density="dense"]       { --row-h: 30px; }

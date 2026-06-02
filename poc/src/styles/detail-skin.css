@@ -1,0 +1,229 @@
+/* ============================================================
+   ABAX Gantt — Detail panel y Toolbar columns (Fase 4 rediseño)
+   Reskin del panel de detalle: header con pin + cierre, tabs
+   subrayadas, status pill en lugar del badge viejo.
+   ============================================================ */
+
+/* ---- Panel: visual ---- */
+.detail-panel {
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-panel);
+}
+
+/* Modo flotante (desacoplado): el panel queda como overlay sobre el Gantt.
+   El layout del workspace ya lo incluye en su flex; cuando es flotante lo
+   posicionamos absoluto sobre el borde derecho. */
+.detail-panel--floating {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 360px;
+  z-index: 40;
+  border-radius: 0 0 0 var(--r-md);
+  border-left: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ---- Header con acciones (pin + cerrar) ---- */
+.detail-header {
+  position: relative;
+  padding: var(--sp-6) var(--sp-6) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+}
+.detail-header-actions {
+  position: absolute;
+  top: var(--sp-4);
+  right: var(--sp-4);
+  display: flex;
+  gap: var(--sp-2);
+  z-index: 1;
+}
+.detail-header-pin,
+.detail-header-close {
+  display: grid;
+  place-items: center;
+  width: 28px; height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color .12s, color .12s, border-color .12s;
+}
+.detail-header-pin:hover,
+.detail-header-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-strong);
+}
+.detail-header-pin.is-on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.detail-header-pin:focus-visible,
+.detail-header-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  border-color: var(--accent);
+}
+
+.detail-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-right: 70px; /* deja espacio para los iconos del top-right */
+}
+.detail-header-text p {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.detail-header-text h2 {
+  margin: 0;
+  font-size: var(--fs-18);
+  font-weight: var(--fw-bold);
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+.detail-header-text small {
+  font-size: var(--fs-12);
+  color: var(--text-muted);
+}
+
+/* ---- Tabs subrayadas ---- */
+.detail-tabs {
+  display: flex;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-6);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.detail-tabs button {
+  padding: var(--sp-4) var(--sp-3);
+  border: 0;
+  background: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-family: inherit;
+  font-size: var(--fs-13);
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .12s, border-color .12s;
+}
+.detail-tabs button:hover { color: var(--text-strong); }
+.detail-tabs button.active {
+  color: var(--accent-text);
+  border-bottom-color: var(--accent);
+  font-weight: var(--fw-semibold);
+}
+
+/* Tab "Más ▾" con dropdown (Presupuesto + Adjuntos) */
+.detail-tabs-more { position: relative; display: inline-flex; }
+.detail-tabs-more > button { gap: var(--sp-2); }
+.detail-tabs-more-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 180px;
+  padding: var(--sp-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.detail-tabs-more-menu button {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 var(--sp-4);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-strong);
+  font-family: inherit;
+  font-size: var(--fs-13);
+  text-align: left;
+  cursor: pointer;
+}
+.detail-tabs-more-menu button:hover { background: var(--bg-hover); }
+.detail-tabs-more-menu button.is-on {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: var(--fw-semibold);
+}
+
+/* ---- Indicador de guardado ---- */
+.save-indicator {
+  padding: var(--sp-4) var(--sp-6);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-12);
+  color: var(--text-muted);
+}
+.save-indicator--saving { color: var(--text-muted); }
+.save-indicator--saved  { color: var(--c-done-text); }
+.save-indicator--error  { color: var(--c-late-text); }
+
+/* ============================================================
+   Toolbar — botón Columnas + popover
+   ============================================================ */
+.columns-menu { position: relative; }
+
+.tb-columns-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  height: 30px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font-family: inherit;
+  font-size: var(--fs-13);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+}
+.tb-columns-btn:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+.tb-columns-btn.is-open {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.tb-columns-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  border-color: var(--accent);
+}
+
+.columns-menu-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 240px;
+  /* `.fb-menu` (de filterbar.css) ya define padding, fondo, borde y sombra */
+}
+
+.tb-columns-count {
+  font-size: var(--fs-11);
+  letter-spacing: .04em;
+  color: var(--text-faint);
+  font-weight: var(--fw-semibold);
+  margin-right: auto;
+}
