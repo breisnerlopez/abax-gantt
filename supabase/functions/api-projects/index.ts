@@ -13,9 +13,11 @@ Deno.serve(async (req: Request) => {
     const db = getServiceClient();
 
     if (req.method === "GET") {
+      // Rediseño Fase 9: incluimos el join `teams(id,name,color,lead_id)` para
+      // que el frontend pueda agrupar el portafolio sin hacer un fetch adicional.
       const { data: projects, error } = await db
         .from("projects")
-        .select("*, project_types(id,name,color)")
+        .select("*, project_types(id,name,color), teams(id,name,color,lead_id)")
         .order("created_at", { ascending: false });
       if (error) throw new ApiError(500, error.message);
 
@@ -48,6 +50,9 @@ Deno.serve(async (req: Request) => {
       const projectId = crypto.randomUUID();
       const rootNodeId = crypto.randomUUID();
       const projectTypeId = optionalUuid(body.project_type_id, "project_type_id");
+      // Rediseño Fase 9: team_id es opcional; null deja el proyecto en el bucket
+      // "Sin equipo" cuando el usuario agrupa por equipo desde el portafolio.
+      const teamId = optionalUuid(body.team_id, "team_id");
       const budgetTotal = optionalNumber(body.budget_total, "budget_total", 0);
 
       const { data: project, error: projectError } = await db
@@ -57,6 +62,7 @@ Deno.serve(async (req: Request) => {
           name,
           description: optionalString(body.description, "description"),
           project_type_id: projectTypeId,
+          team_id: teamId,
           autoscheduling_enabled: optionalBoolean(body.autoscheduling_enabled, "autoscheduling_enabled") ?? true,
           budget_total: budgetTotal,
           created_by: auth.userId,
