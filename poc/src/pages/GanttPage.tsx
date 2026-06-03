@@ -12,7 +12,9 @@ import { MobileTaskList } from '../components/MobileTaskList';
 import { Toolbar } from '../components/Toolbar';
 import { errorMessage, useToast } from '../lib/toast';
 import { usePortfolio } from '../hooks/usePortfolio';
-import { addAssignee, apiUrl, createDependency, createProject, createWbsNode, deleteDependency, listAssignees, moveWbsNode, removeAssignee, reportProgress, scheduleWbsNode, unscheduleWbsNode, updateWbsNode } from '../lib/api';
+import { addAssignee, apiUrl, createDependency, createProject, createWbsNode, deleteDependency, deleteWbsNode, listAssignees, moveWbsNode, removeAssignee, reportProgress, scheduleWbsNode, unscheduleWbsNode, updateWbsNode } from '../lib/api';
+import { collectSubtreeIds } from '../lib/portfolio-state';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { computeNodeStatus } from '../lib/status';
 import { applyGroupBy, type GroupBy } from '../lib/grouping';
 import { DEFAULT_GRID_COLUMNS, loadGridColumns, saveGridColumns, type GridColumnsConfig } from '../lib/grid-columns';
@@ -230,6 +232,46 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
     }
   }, [notify, onSelectNode, portfolio, token]);
 
+  // ─── Borrar nodo ─────────────────────────────────────────────────────
+  // Flujo: el botón "Eliminar" del DetailPanel y el atajo Cmd/Ctrl+Shift+⌫
+  // setean `pendingDeleteNode`. El usuario ve un dialog con el número de
+  // descendientes que se borrarán. Confirmar dispara el DELETE; cancelar
+  // limpia el estado.
+  const [pendingDeleteNode, setPendingDeleteNode] = useState<WbsNode | null>(null);
+  const [deletingNode, setDeletingNode] = useState(false);
+
+  const requestDeleteNode = useCallback((node: WbsNode) => {
+    if (!canEditStructure || node.type === 'project') return;
+    setPendingDeleteNode(node);
+  }, [canEditStructure]);
+
+  const confirmDeleteNode = useCallback(async () => {
+    if (!token || !pendingDeleteNode) return;
+    setDeletingNode(true);
+    try {
+      await deleteWbsNode(token, pendingDeleteNode.id);
+      // Limpia el cache local sin esperar al re-fetch.
+      portfolio.removeNodeLocal(pendingDeleteNode.id);
+      // Si el seleccionado era el borrado (o un descendiente), deseleccionamos.
+      if (selectedNode) {
+        const removed = collectSubtreeIds(portfolio.data?.nodes ?? [], pendingDeleteNode.id);
+        if (removed.has(selectedNode.id)) onSelectNode(null);
+      }
+      notify({ tone: 'success', title: 'Nodo eliminado' });
+      setPendingDeleteNode(null);
+    } catch (error) {
+      notify({ tone: 'error', title: 'No se pudo eliminar nodo', detail: errorMessage(error) });
+    } finally {
+      setDeletingNode(false);
+    }
+  }, [notify, onSelectNode, pendingDeleteNode, portfolio, selectedNode, token]);
+
+  // Conteo de descendientes para la descripción del dialog
+  const pendingDeleteDescendantCount = useMemo(() => {
+    if (!pendingDeleteNode || !portfolio.data) return 0;
+    return collectSubtreeIds(portfolio.data.nodes, pendingDeleteNode.id).size - 1;
+  }, [pendingDeleteNode, portfolio.data]);
+
   const handleAddAssignee = useCallback(async (userId: string) => {
     if (!token || !selectedNode) return;
     try {
@@ -342,12 +384,18 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
       if (isInput && event.key !== 'Escape') return;
       if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === 'N') { event.preventDefault(); setCreateMode('project'); return; }
       if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key === 'k') { event.preventDefault(); setBacklogOpen((prev) => !prev); return; }
+      // Cmd/Ctrl+⌫: enviar a backlog (unschedule). Cmd/Ctrl+Shift+⌫: borrar.
+      if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === 'Backspace') {
+        event.preventDefault();
+        if (selectedNode) requestDeleteNode(selectedNode);
+        return;
+      }
       if ((event.metaKey || event.ctrlKey) && event.key === 'Backspace') { event.preventDefault(); if (selectedNode && canEditStructure && !selectedNode.is_unscheduled && selectedNode.type !== 'project') void handleUnscheduleNode(selectedNode); return; }
       if (event.key === 'Escape') { setCreateMode(null); setBacklogOpen(false); }
     };
     window.addEventListener('keydown', listener);
     return () => window.removeEventListener('keydown', listener);
-  }, [canEditStructure, handleUnscheduleNode, selectedNode]);
+  }, [canEditStructure, handleUnscheduleNode, requestDeleteNode, selectedNode]);
 
   const sessionEmail = session?.userEmail ?? null;
   const sessionName = session?.userName ?? null;
@@ -854,6 +902,7 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
               onClose={() => setDetailVisible(false)}
               pinned={detailPinned}
               onTogglePinned={toggleDetailPinned}
+              onDeleteRequest={requestDeleteNode}
             />
           </ErrorBoundary>
         ) : (
@@ -872,8 +921,33 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
         canEditStructure={canEditStructure}
         teams={portfolio.data?.teams?.filter((t) => t.is_active !== false) ?? []}
       />
+      {pendingDeleteNode && (
+        <ConfirmDialog
+          title={`Eliminar ${labelForType(pendingDeleteNode.type)}: ${pendingDeleteNode.name}`}
+          description={
+            pendingDeleteDescendantCount > 0
+              ? `Se eliminará el nodo y sus ${pendingDeleteDescendantCount} ${pendingDeleteDescendantCount === 1 ? 'descendiente' : 'descendientes'}, sus dependencias y horas. Esta acción no se puede deshacer.`
+              : 'Se eliminará el nodo, sus dependencias y horas. Esta acción no se puede deshacer.'
+          }
+          confirmLabel="Eliminar"
+          busy={deletingNode}
+          onCancel={() => { if (!deletingNode) setPendingDeleteNode(null); }}
+          onConfirm={() => void confirmDeleteNode()}
+        />
+      )}
     </AppShell>
   );
+}
+
+function labelForType(t: WbsNode['type']): string {
+  const labels: Record<WbsNode['type'], string> = {
+    project: 'proyecto',
+    stage: 'etapa',
+    group: 'grupo',
+    task: 'tarea',
+    milestone: 'hito',
+  };
+  return labels[t] ?? 'nodo';
 }
 
 function StatusState({ title, description, action }: { title: string; description: string; action?: string }) {

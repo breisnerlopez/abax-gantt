@@ -68,11 +68,14 @@ interface DetailPanelProps {
   pinned?: boolean;
   /** Toggle del pin desde el header. Si no se pasa, no se muestra el botón. */
   onTogglePinned?: () => void;
+  /** Solicita borrar el nodo (lanza el ConfirmDialog en el padre). El botón
+      solo se muestra si la prop se pasa Y canEditStructure Y type !== 'project'. */
+  onDeleteRequest?: (node: WbsNode) => void;
 }
 
 type SaveState = 'saved' | 'saving' | 'error';
 
-export function DetailPanel({ node, token, users, assignees, onSave, onUnschedule, onAddAssignee, onRemoveAssignee, onReportProgress, onSetResponsible, canEditStructure, canReportProgress, onClose, pinned, onTogglePinned }: DetailPanelProps) {
+export function DetailPanel({ node, token, users, assignees, onSave, onUnschedule, onAddAssignee, onRemoveAssignee, onReportProgress, onSetResponsible, canEditStructure, canReportProgress, onClose, pinned, onTogglePinned, onDeleteRequest }: DetailPanelProps) {
   const [form, setForm] = useState(() => toForm(node));
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [activeTab, setActiveTab] = useState<DetailTab>('info');
@@ -238,7 +241,19 @@ export function DetailPanel({ node, token, users, assignees, onSave, onUnschedul
       {activeTab === 'horas' && <div role="tabpanel"><TimesheetPanel node={node} token={token} /></div>}
       {activeTab === 'presupuesto' && <div role="tabpanel"><BudgetTab token={token} node={node} /></div>}
       {activeTab === 'adjuntos' && <div role="tabpanel"><AttachmentsTab token={token} node={node} /></div>}
-      <footer className={`save-indicator save-indicator--${saveState}`}>{saveLabel(saveState)}</footer>
+      <footer className={`save-indicator save-indicator--${saveState}`}>
+        <span>{saveLabel(saveState)}</span>
+        {onDeleteRequest && canEditStructure && node.type !== 'project' && (
+          <button
+            type="button"
+            className="detail-delete-btn"
+            title="Eliminar nodo (Cmd/Ctrl + Shift + ⌫)"
+            onClick={() => onDeleteRequest(node)}
+          >
+            Eliminar
+          </button>
+        )}
+      </footer>
     </aside>
   );
 }

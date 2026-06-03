@@ -169,16 +169,48 @@
   font-weight: var(--fw-semibold);
 }
 
-/* ---- Indicador de guardado ---- */
+/* ---- Footer: indicador de guardado + acciones ---- */
 .save-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
   padding: var(--sp-4) var(--sp-6);
   border-top: 1px solid var(--border);
+  background: var(--bg-subtle);
   font-size: var(--fs-12);
   color: var(--text-muted);
 }
 .save-indicator--saving { color: var(--text-muted); }
 .save-indicator--saved  { color: var(--c-done-text); }
 .save-indicator--error  { color: var(--c-late-text); }
+
+.detail-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  height: 28px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--c-late-border);
+  border-radius: var(--r-md);
+  background: var(--c-late-soft);
+  color: var(--c-late-text);
+  font: inherit;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transition: background-color .12s, border-color .12s, color .12s, box-shadow .12s;
+}
+.detail-delete-btn:hover {
+  border-color: var(--c-late);
+  background: var(--c-late-soft);
+  color: var(--c-late-text);
+}
+.detail-delete-btn:focus-visible {
+  outline: none;
+  border-color: var(--c-late);
+  box-shadow: 0 0 0 3px oklch(0.585 0.205 25 / 0.30);
+}
 
 /* ============================================================
    Toolbar — botón Columnas + popover

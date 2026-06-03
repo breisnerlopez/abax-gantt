@@ -90,3 +90,45 @@ export function addDependencyToPortfolio(data: PortfolioData, dependency: Depend
 export function removeDependencyFromPortfolio(data: PortfolioData, dependencyId: string): PortfolioData {
   return { ...data, dependencies: data.dependencies.filter((item) => item.id !== dependencyId) };
 }
+
+/**
+ * Devuelve el set de ids del nodo y todos sus descendientes (BFS por parent_id).
+ * Útil para contar antes de borrar y para limpiar el cache local sin
+ * esperar al re-fetch.
+ */
+export function collectSubtreeIds(nodes: WbsNode[], rootId: string): Set<string> {
+  const childMap = new Map<string, WbsNode[]>();
+  nodes.forEach((n) => {
+    if (!n.parent_id) return;
+    const arr = childMap.get(n.parent_id);
+    if (arr) arr.push(n); else childMap.set(n.parent_id, [n]);
+  });
+  const acc = new Set<string>();
+  const stack: string[] = [rootId];
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    if (acc.has(id)) continue;
+    acc.add(id);
+    (childMap.get(id) ?? []).forEach((c) => stack.push(c.id));
+  }
+  return acc;
+}
+
+/**
+ * Borra un nodo y toda su subtree del cache local. También limpia las
+ * dependencias en las que cualquiera de los nodos borrados participe
+ * (el backend ya las elimina vía ON DELETE CASCADE).
+ */
+export function removeNodeFromPortfolio(data: PortfolioData, nodeId: string): PortfolioData {
+  const toRemove = collectSubtreeIds(data.nodes, nodeId);
+  // El nodo también puede estar en backlog si era unscheduled.
+  const backlogIds = new Set(data.backlog.map((n) => n.id));
+  return {
+    ...data,
+    nodes: data.nodes.filter((n) => !toRemove.has(n.id)),
+    backlog: data.backlog.filter((n) => !toRemove.has(n.id) && backlogIds.has(n.id)),
+    dependencies: data.dependencies.filter(
+      (d) => !toRemove.has(d.predecessor_id) && !toRemove.has(d.successor_id),
+    ),
+  };
+}

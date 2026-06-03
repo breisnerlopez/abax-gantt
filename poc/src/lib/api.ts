@@ -198,6 +198,16 @@ export async function unscheduleWbsNode(token: string, id: string) {
   return apiSend<WbsNode>(`api/wbs/schedule/${id}`, token, 'PATCH', { unschedule: true });
 }
 
+/**
+ * Borra el nodo. El backend hace `DELETE FROM wbs_nodes WHERE id = $1` y la
+ * FK `parent_id ... ON DELETE CASCADE` (migración 00001) se encarga de
+ * borrar toda la subtree, sus dependencias, assignees y time entries. RLS:
+ * exige `can_manage_node` en el nodo o su padre.
+ */
+export async function deleteWbsNode(token: string, id: string): Promise<void> {
+  return apiDelete(`api/wbs/${id}`, token);
+}
+
 export async function listAssignees(token: string, taskId: string) {
   return apiGet<TaskAssignee[]>(`api/assignees?task_id=${encodeURIComponent(taskId)}`, token);
 }

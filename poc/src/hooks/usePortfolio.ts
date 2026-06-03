@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadPortfolio, type PortfolioFilters } from '../lib/api';
-import { addDependencyToPortfolio, removeDependencyFromPortfolio, updateNodeInPortfolio, updateNodeWithRollup } from '../lib/portfolio-state';
+import { addDependencyToPortfolio, removeDependencyFromPortfolio, removeNodeFromPortfolio, updateNodeInPortfolio, updateNodeWithRollup } from '../lib/portfolio-state';
 import type { Dependency, PortfolioData, WbsNode } from '../lib/types';
 
 type PortfolioState =
@@ -15,6 +15,8 @@ type PortfolioResult = PortfolioState & {
   updateNodeLocalWithRollup: (node: WbsNode, previousParentId?: string | null) => void;
   addDependencyLocal: (dependency: Dependency) => void;
   removeDependencyLocal: (dependencyId: string) => void;
+  /** Borra del cache un nodo y toda su subtree (limpia también las deps afectadas). */
+  removeNodeLocal: (nodeId: string) => void;
 };
 
 const POLL_INTERVAL_MS = 30_000;
@@ -73,6 +75,14 @@ export function usePortfolio(token: string | null, filters?: PortfolioFilters): 
     });
   }, []);
 
+  const removeNodeLocal = useCallback((nodeId: string) => {
+    lastMutationRef.current = Date.now();
+    setState((current) => {
+      if (current.status !== 'ready') return current;
+      return { ...current, data: removeNodeFromPortfolio(current.data, nodeId) };
+    });
+  }, []);
+
   useEffect(() => {
     if (!token) return;
 
@@ -111,7 +121,7 @@ export function usePortfolio(token: string | null, filters?: PortfolioFilters): 
     };
   }, [token, filters]);
 
-  const actions = { refetch, updateNodeLocal, updateNodeLocalWithRollup, addDependencyLocal, removeDependencyLocal };
+  const actions = { refetch, updateNodeLocal, updateNodeLocalWithRollup, addDependencyLocal, removeDependencyLocal, removeNodeLocal };
   if (token && state.status === 'idle') return { status: 'loading' as const, data: null, error: null, ...actions };
   if (!token && state.status !== 'idle') return { status: 'idle' as const, data: null, error: null, ...actions };
   return { ...state, ...actions };
