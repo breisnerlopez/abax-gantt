@@ -3,6 +3,25 @@ import { getClient } from "./_shared/db.ts";
 import { ApiError, handleCors, handleError, okResponse } from "./_shared/errors.ts";
 import { optionalBoolean, optionalNumber, optionalString, optionalUuid, readJson, requireString } from "./_shared/validation.ts";
 
+/** Materializa `project.teams` desde las columnas team_id/team_name/team_color del join. */
+// deno-lint-ignore no-explicit-any
+function enrichTeam(row: any) {
+  if (row.team_id) {
+    row.teams = {
+      id: row.team_id,
+      name: row.team_name,
+      color: row.team_color,
+      lead_id: row.team_lead_id,
+    };
+  } else {
+    row.teams = null;
+  }
+  delete row.team_name;
+  delete row.team_color;
+  delete row.team_lead_id;
+  return row;
+}
+
 export async function handler(req: Request): Promise<Response> {
   const preflight = handleCors(req);
   if (preflight) return preflight;
@@ -14,22 +33,35 @@ export async function handler(req: Request): Promise<Response> {
     const id = url.pathname.split("/").filter(Boolean).pop();
 
     if (req.method === "GET") {
+      // Rediseño Fase 9: incluimos t.id, t.name, t.color del join `teams` para
+      // que el frontend pueda agrupar el portafolio por equipo sin un fetch
+      // adicional. El frontend reconstruye `project.teams = {...}` desde los
+      // campos team_id / team_name / team_color.
+      const baseSelect = `
+        p.*,
+        pt.name AS type_name, pt.color AS type_color,
+        t.name AS team_name, t.color AS team_color, t.lead_id AS team_lead_id
+      `;
+      const baseFrom = `
+        FROM projects p
+        LEFT JOIN project_types pt ON pt.id = p.project_type_id
+        LEFT JOIN teams t ON t.id = p.team_id
+      `;
       if (id && /^[0-9a-f-]{36}$/i.test(id)) {
         const result = await db.query(
-          `SELECT p.*, pt.name AS type_name, pt.color AS type_color
-           FROM projects p LEFT JOIN project_types pt ON pt.id = p.project_type_id
-           WHERE p.id = $1`,
+          `SELECT ${baseSelect} ${baseFrom} WHERE p.id = $1`,
           [id],
         );
         if (result.rows.length === 0) throw new ApiError(404, "Proyecto no encontrado");
-        return okResponse({ data: result.rows[0] });
+        return okResponse({ data: enrichTeam(result.rows[0]) });
       }
 
       const result = await db.query(
-        `SELECT p.*, pt.name AS type_name, pt.color AS type_color
-         FROM projects p LEFT JOIN project_types pt ON pt.id = p.project_type_id
-         ORDER BY p.created_at DESC`,
+        `SELECT ${baseSelect} ${baseFrom} ORDER BY p.created_at DESC`,
       );
+      // mutate filas en sitio: añadimos `teams: {id,name,color,lead_id}` para
+      // que el frontend (`Project.teams`) lo consuma sin cambios.
+      result.rows = result.rows.map(enrichTeam);
 
       let projects = result.rows;
       if (!auth.isAdmin) {
@@ -66,13 +98,15 @@ export async function handler(req: Request): Promise<Response> {
       const projectId = crypto.randomUUID();
 
       await db.query(
-        `INSERT INTO projects (id, name, description, project_type_id, budget_total, autoscheduling_enabled, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        `INSERT INTO projects (id, name, description, project_type_id, team_id, budget_total, autoscheduling_enabled, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
           projectId,
           name,
           optionalString(body.description, "description"),
           optionalUuid(body.project_type_id, "project_type_id"),
+          // Rediseño Fase 9: aceptamos team_id opcional al crear proyecto.
+          optionalUuid(body.team_id, "team_id"),
           optionalNumber(body.budget_total, "budget_total", 0) ?? 0,
           optionalBoolean(body.autoscheduling_enabled, "autoscheduling_enabled") ?? true,
           auth.userId,
@@ -101,7 +135,8 @@ export async function handler(req: Request): Promise<Response> {
       await assertCanManageProject(auth.userId, id);
       const body = await readJson(req);
       const patch: Record<string, unknown> = {};
-      const fields = ["name","description","project_type_id","budget_total","autoscheduling_enabled","status"];
+      // Fase 9: team_id editable.
+      const fields = ["name","description","project_type_id","team_id","budget_total","autoscheduling_enabled","status"];
       for (const f of fields) {
         if (body[f] !== undefined) patch[f] = body[f];
       }

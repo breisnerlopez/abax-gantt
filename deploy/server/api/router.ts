@@ -16,6 +16,9 @@ import { handler as summary } from "./summary.ts";
 import { handler as adminUsers } from "./admin-users.ts";
 import { handler as users } from "./users.ts";
 import { handler as adminProjectTypes } from "./admin-project-types.ts";
+import { handler as teams } from "./teams.ts";
+import { handler as adminTeams } from "./admin-teams.ts";
+import { handler as adminTeam } from "./admin-team.ts";
 import { handler as imp } from "./import.ts";
 import { handler as mcp } from "./mcp.ts";
 import { handleCors, errorResponse } from "./_shared/errors.ts";
@@ -39,6 +42,11 @@ const ROUTES: { pattern: RegExp; handler: (req: Request) => Promise<Response> }[
   { pattern: /^\/api\/summary/, handler: summary },
   { pattern: /^\/api\/admin\/users/, handler: adminUsers },
   { pattern: /^\/api\/admin\/project-types/, handler: adminProjectTypes },
+  // Rediseño Fase 9: equipos. La ruta con :id (PATCH/PUT) debe ir antes de la
+  // ruta plural para no caer en `admin-teams` (GET/POST).
+  { pattern: /^\/api\/admin\/teams\/[0-9a-f-]{36}$/i, handler: adminTeam },
+  { pattern: /^\/api\/admin\/teams(\/|$)/, handler: adminTeams },
+  { pattern: /^\/api\/teams(\/|$)/, handler: teams },
   { pattern: /^\/api\/users/, handler: users },
   { pattern: /^\/api\/import/, handler: imp },
   { pattern: /^\/api\/mcp/, handler: mcp },
