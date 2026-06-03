@@ -25,8 +25,9 @@ test('1+2: Gantt muestra >6 meses al futuro (padding desactiva fit_tasks)', asyn
   await page.waitForTimeout(3000);
   // Inspect the gantt date range via DHTMLX state.
   const range = await page.evaluate(() => {
-    // deno-lint-ignore no-explicit-any
-    const g = (window as any).gantt;
+    type DateLike = { toISOString?: () => string };
+    interface GanttConfig { start_date?: DateLike; end_date?: DateLike }
+    const g = (window as unknown as { gantt?: { config: GanttConfig } }).gantt;
     if (!g) return null;
     return { start: g.config.start_date?.toISOString?.(), end: g.config.end_date?.toISOString?.() };
   });

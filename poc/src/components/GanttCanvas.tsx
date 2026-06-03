@@ -124,6 +124,16 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     // calculamos start_date/end_date desde los datos + un padding de -1 mes y
     // +6 meses para que siempre se vea futuro (y un poco de pasado).
     gantt.config.fit_tasks = false;
+    // Divisor arrastrable entre el grid izquierdo y el timeline. El usuario
+    // puede expandir/encoger la columna de Nombre/Estado/Resp para dar más o
+    // menos espacio al timeline. Persistimos el width final en localStorage.
+    gantt.config.grid_resize = true;
+    try {
+      const saved = parseInt(window.localStorage.getItem('abax.grid.width') ?? '', 10);
+      if (Number.isFinite(saved) && saved >= 120 && saved <= 900) {
+        gantt.config.grid_width = saved;
+      }
+    } catch { /* ignore */ }
     gantt.config.order_branch = canEditStructure;
     gantt.config.order_branch_free = canEditStructure;
     gantt.config.show_quick_info = true;
@@ -291,6 +301,12 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
         markerApi.addMarker({ start_date: new Date(), css: 'today-marker', text: 'HOY', title: 'Hoy' });
       }
     } catch { /* plugin marker no disponible */ }
+
+    // Persiste el ancho del grid cuando el usuario arrastra el divisor.
+    const gridResizeEvent = gantt.attachEvent('onGridResizeEnd', (_old: number, next: number) => {
+      try { window.localStorage.setItem('abax.grid.width', String(next)); } catch { /* ignore */ }
+      return true;
+    });
 
     const selectEvent = gantt.attachEvent('onTaskSelected', (id) => {
       // Las cabeceras sintéticas de agrupación (id "__resp__*") son virtuales:
@@ -493,6 +509,7 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       gantt.detachEvent(moveEvent);
       gantt.detachEvent(collapsedOpen);
       gantt.detachEvent(collapsedClosed);
+      gantt.detachEvent(gridResizeEvent);
       gantt.clearAll();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo reinicializar si cambian permisos; scale se maneja en efecto separado

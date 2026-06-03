@@ -149,8 +149,13 @@ export async function handler(req: Request): Promise<Response> {
 
     if (req.method === "DELETE" && id) {
       await assertCanManageProject(auth.userId, id);
-      await db.query(`UPDATE projects SET status = 'archived' WHERE id = $1`, [id]);
-      return okResponse({ data: { archived: true } });
+      // Hard delete del proyecto. La FK wbs_nodes.project_id ON DELETE CASCADE
+      // (migración 00001) elimina toda la subtree, y las cascades transitivas
+      // (dependencies, task_assignees, time_entries) limpian el resto.
+      // attachments.project_id también es CASCADE → se borran sus adjuntos.
+      // Para archivar (soft) usar PATCH con { status: 'archived' }.
+      await db.query(`DELETE FROM projects WHERE id = $1`, [id]);
+      return okResponse({ data: { deleted: true } });
     }
 
     throw new ApiError(405, "Metodo no permitido");

@@ -12,7 +12,7 @@ import { MobileTaskList } from '../components/MobileTaskList';
 import { Toolbar } from '../components/Toolbar';
 import { errorMessage, useToast } from '../lib/toast';
 import { usePortfolio } from '../hooks/usePortfolio';
-import { addAssignee, apiUrl, createDependency, createProject, createWbsNode, deleteDependency, deleteWbsNode, listAssignees, moveWbsNode, removeAssignee, reportProgress, scheduleWbsNode, unscheduleWbsNode, updateProject, updateWbsNode } from '../lib/api';
+import { addAssignee, apiUrl, createDependency, createProject, createWbsNode, deleteDependency, deleteProject, deleteWbsNode, listAssignees, moveWbsNode, removeAssignee, reportProgress, scheduleWbsNode, unscheduleWbsNode, updateProject, updateWbsNode } from '../lib/api';
 import { collectSubtreeIds } from '../lib/portfolio-state';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { computeNodeStatus } from '../lib/status';
@@ -245,7 +245,8 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
   const [deletingNode, setDeletingNode] = useState(false);
 
   const requestDeleteNode = useCallback((node: WbsNode) => {
-    if (!canEditStructure || node.type === 'project') return;
+    // Borrar proyectos también es posible; el backend hace hard delete con CASCADE.
+    if (!canEditStructure) return;
     setPendingDeleteNode(node);
   }, [canEditStructure]);
 
@@ -253,7 +254,13 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
     if (!token || !pendingDeleteNode) return;
     setDeletingNode(true);
     try {
-      await deleteWbsNode(token, pendingDeleteNode.id);
+      if (pendingDeleteNode.type === 'project') {
+        // Para proyectos, DELETE /api/projects/:id hace hard delete con CASCADE
+        // sobre wbs_nodes, attachments, dependencies, etc.
+        await deleteProject(token, pendingDeleteNode.project_id);
+      } else {
+        await deleteWbsNode(token, pendingDeleteNode.id);
+      }
       // Limpia el cache local sin esperar al re-fetch.
       portfolio.removeNodeLocal(pendingDeleteNode.id);
       // Si el seleccionado era el borrado (o un descendiente), deseleccionamos.
@@ -261,20 +268,20 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
         const removed = collectSubtreeIds(portfolio.data?.nodes ?? [], pendingDeleteNode.id);
         if (removed.has(selectedNode.id)) onSelectNode(null);
       }
-      notify({ tone: 'success', title: 'Nodo eliminado' });
+      // Refresca portfolio (para proyectos, también desaparece de la lista de projects).
+      if (pendingDeleteNode.type === 'project') void portfolio.refetch();
+      notify({ tone: 'success', title: pendingDeleteNode.type === 'project' ? 'Proyecto eliminado' : 'Nodo eliminado' });
       setPendingDeleteNode(null);
     } catch (error) {
-      notify({ tone: 'error', title: 'No se pudo eliminar nodo', detail: errorMessage(error) });
+      notify({ tone: 'error', title: 'No se pudo eliminar', detail: errorMessage(error) });
     } finally {
       setDeletingNode(false);
     }
   }, [notify, onSelectNode, pendingDeleteNode, portfolio, selectedNode, token]);
 
-  // Conteo de descendientes para la descripción del dialog
-  const pendingDeleteDescendantCount = useMemo(() => {
-    if (!pendingDeleteNode || !portfolio.data) return 0;
-    return collectSubtreeIds(portfolio.data.nodes, pendingDeleteNode.id).size - 1;
-  }, [pendingDeleteNode, portfolio.data]);
+  // (Antes había un useMemo aquí para contar descendientes; ahora el cálculo
+  // se hace inline en la descripción del ConfirmDialog para incluir también
+  // dependencias afectadas.)
 
   const handleAddAssignee = useCallback(async (userId: string) => {
     if (!token || !selectedNode) return;
@@ -962,12 +969,25 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
       {pendingDeleteNode && (
         <ConfirmDialog
           title={`Eliminar ${labelForType(pendingDeleteNode.type)}: ${pendingDeleteNode.name}`}
-          description={
-            pendingDeleteDescendantCount > 0
-              ? `Se eliminará el nodo y sus ${pendingDeleteDescendantCount} ${pendingDeleteDescendantCount === 1 ? 'descendiente' : 'descendientes'}, sus dependencias y horas. Esta acción no se puede deshacer.`
-              : 'Se eliminará el nodo, sus dependencias y horas. Esta acción no se puede deshacer.'
-          }
-          confirmLabel="Eliminar"
+          description={(() => {
+            const isProj = pendingDeleteNode.type === 'project';
+            const subtreeIds = portfolio.data ? collectSubtreeIds(portfolio.data.nodes, pendingDeleteNode.id) : new Set<string>();
+            const descs = subtreeIds.size - 1;
+            const depsCount = (portfolio.data?.dependencies ?? []).filter(
+              (d) => subtreeIds.has(d.predecessor_id) || subtreeIds.has(d.successor_id),
+            ).length;
+            if (isProj) {
+              const pieces: string[] = [];
+              if (descs > 0) pieces.push(`${descs} ${descs === 1 ? 'tarea' : 'tareas/etapas'}`);
+              if (depsCount > 0) pieces.push(`${depsCount} ${depsCount === 1 ? 'dependencia' : 'dependencias'}`);
+              pieces.push('sus horas reportadas y adjuntos');
+              return `Se eliminará el PROYECTO completo (${pieces.join(', ')}). Esta acción es permanente y no se puede deshacer.`;
+            }
+            return descs > 0
+              ? `Se eliminará el nodo y sus ${descs} ${descs === 1 ? 'descendiente' : 'descendientes'}${depsCount > 0 ? `, ${depsCount} ${depsCount === 1 ? 'dependencia' : 'dependencias'}` : ''} y sus horas. Esta acción no se puede deshacer.`
+              : 'Se eliminará el nodo, sus dependencias y horas. Esta acción no se puede deshacer.';
+          })()}
+          confirmLabel={pendingDeleteNode.type === 'project' ? 'Eliminar proyecto' : 'Eliminar'}
           busy={deletingNode}
           onCancel={() => { if (!deletingNode) setPendingDeleteNode(null); }}
           onConfirm={() => void confirmDeleteNode()}

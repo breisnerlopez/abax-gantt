@@ -81,7 +81,7 @@ test.describe('Borrar nodo', () => {
     expect(deleted.value).toBe(false);
   });
 
-  test('no se ofrece Eliminar para proyectos (root)', async ({ page }) => {
+  test('botón Eliminar también aparece para proyectos (root)', async ({ page }) => {
     const deleted = { value: false };
     await mockApi(page, deleted);
     await page.addInitScript(() => {
@@ -92,6 +92,9 @@ test.describe('Borrar nodo', () => {
     await page.waitForSelector('.gantt_container', { timeout: 10000 });
     await page.locator('.gantt_row').filter({ hasText: 'Demo Delete' }).first().click();
     await page.waitForTimeout(400);
-    await expect(page.locator('.detail-delete-btn')).not.toBeVisible();
+    // Antes el botón se ocultaba para projects; ahora se muestra con label
+    // distinto ("Eliminar proyecto") y dispara un dialog reforzado.
+    await expect(page.locator('.detail-delete-btn')).toBeVisible();
+    await expect(page.locator('.detail-delete-btn')).toHaveText('Eliminar proyecto');
   });
 });

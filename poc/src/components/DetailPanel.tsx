@@ -70,7 +70,8 @@ interface DetailPanelProps {
   /** Toggle del pin desde el header. Si no se pasa, no se muestra el botón. */
   onTogglePinned?: () => void;
   /** Solicita borrar el nodo (lanza el ConfirmDialog en el padre). El botón
-      solo se muestra si la prop se pasa Y canEditStructure Y type !== 'project'. */
+      se muestra si la prop se pasa Y canEditStructure. Para proyectos el
+      dialog del padre detalla el alcance de la eliminación. */
   onDeleteRequest?: (node: WbsNode) => void;
   /** Fase 9 + post: editor de equipo. teams = equipos activos disponibles.
       `currentTeamId` viene de portfolio.data.projects[i].team_id porque el
@@ -250,14 +251,16 @@ export function DetailPanel({ node, token, users, assignees, onSave, onUnschedul
       {activeTab === 'adjuntos' && <div role="tabpanel"><AttachmentsTab token={token} node={node} /></div>}
       <footer className={`save-indicator save-indicator--${saveState}`}>
         <span>{saveLabel(saveState)}</span>
-        {onDeleteRequest && canEditStructure && node.type !== 'project' && (
+        {onDeleteRequest && canEditStructure && (
           <button
             type="button"
             className="detail-delete-btn"
-            title="Eliminar nodo (Cmd/Ctrl + Shift + ⌫)"
+            title={node.type === 'project'
+              ? 'Eliminar proyecto completo (Cmd/Ctrl + Shift + ⌫)'
+              : 'Eliminar nodo (Cmd/Ctrl + Shift + ⌫)'}
             onClick={() => onDeleteRequest(node)}
           >
-            Eliminar
+            {node.type === 'project' ? 'Eliminar proyecto' : 'Eliminar'}
           </button>
         )}
       </footer>

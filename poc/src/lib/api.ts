@@ -186,6 +186,16 @@ export async function updateProject(token: string, id: string, patch: { team_id?
   return apiSend<Project>(`api/projects/${id}`, token, 'PATCH', patch);
 }
 
+/**
+ * DELETE /api/projects/:id — hard delete del proyecto. El backend tiene
+ * CASCADE en wbs_nodes.project_id, attachments.project_id y transitivamente
+ * en dependencies/task_assignees/time_entries. Sin reversa. Para archivar
+ * (soft) usar updateProject con { status: 'archived' } (otra firma).
+ */
+export async function deleteProject(token: string, id: string): Promise<void> {
+  return apiDelete(`api/projects/${id}`, token);
+}
+
 export async function createWbsNode(token: string, input: { parent_id: string; name: string; type: NodeType; start_date?: string | null; end_date?: string | null }) {
   return apiSend<WbsNode>('api/wbs', token, 'POST', input);
 }
