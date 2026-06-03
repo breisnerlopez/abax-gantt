@@ -96,42 +96,65 @@ function serviceWorkerResponse(): Response {
     `${PUBLIC_BASE_PREFIX}/gantt` || "/gantt",
   ];
 
-  const body = `
-const CACHE_NAME = 'abax-${APP_VERSION}';
-const SHELL_URLS = ${jsonForScript(shellUrls)};
+  // El SW lo construimos línea por línea y unimos con join("\n") para evitar
+  // el bug del template literal donde "\/" se colapsa a "/" y rompe regex
+  // como `/\/assets\//`. Reemplazamos con doble backslash literal ("\\/"
+  // serializa a "\/"). Bumpeamos APP_VERSION en CACHE_NAME para invalidar el
+  // cache del SW antiguo en cada deploy.
+  const body = [
+    `const CACHE_NAME = 'abax-${APP_VERSION}';`,
+    `const SHELL_URLS = ${jsonForScript(shellUrls)};`,
+    ``,
+    `self.addEventListener('install', (event) => {`,
+    `  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_URLS).catch(() => {})));`,
+    `  self.skipWaiting();`,
+    `});`,
+    ``,
+    `self.addEventListener('activate', (event) => {`,
+    `  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))));`,
+    `  self.clients.claim();`,
+    `});`,
+    ``,
+    `// Estrategia:`,
+    `// - /api/* nunca se cachea (always network)`,
+    `// - /assets/* con hash de Vite: cache-first (el hash invalida solo)`,
+    `// - Resto (HTML shell): network-first con fallback offline`,
+    `self.addEventListener('fetch', (event) => {`,
+    `  if (event.request.method !== 'GET') return;`,
+    `  const url = new URL(event.request.url);`,
+    `  if (url.pathname.indexOf('/api/') !== -1) return;`,
+    `  const isHashedAsset = /\\/assets\\/.+\\.(js|css|woff2|woff|ttf|png|svg|jpg)$/.test(url.pathname);`,
+    `  const isFont = /\\/fonts\\/.+\\.(woff2|woff|ttf)$/.test(url.pathname);`,
+    `  if (isHashedAsset || isFont) {`,
+    `    event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {`,
+    `      if (response.ok && response.type === 'basic') caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));`,
+    `      return response;`,
+    `    })));`,
+    `    return;`,
+    `  }`,
+    `  event.respondWith(fetch(event.request).then((response) => {`,
+    `    if (response.ok && response.type === 'basic') caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));`,
+    `    return response;`,
+    `  }).catch(() => caches.match(event.request).then((cached) => cached || Response.error())));`,
+    `});`,
+    ``,
+    `// Mensaje para forzar update desde el client (Ctrl+Shift+R o nuevo deploy).`,
+    `self.addEventListener('message', (event) => {`,
+    `  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();`,
+    `});`,
+  ].join("\n");
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_URLS).catch(() => {})));
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))));
-  self.clients.claim();
-});
-
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
-  const url = new URL(event.request.url);
-  if (url.pathname.includes('/api/')) return;
-  if (/\/assets\/.+\.(js|css|woff2|woff|ttf|png|svg|jpg)$/.test(url.pathname) || /\/fonts\/.+\.(woff2|woff|ttf)$/.test(url.pathname)) {
-    event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
-      if (response.ok && response.type === 'basic') caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
-      return response;
-    })));
-    return;
-  }
-  event.respondWith(fetch(event.request).then((response) => {
-    if (response.ok && response.type === 'basic') caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
-    return response;
-  }).catch(() => caches.match(event.request).then((cached) => cached ?? Response.error())));
-});
-`;
-
-  return withSecurityHeaders(new Response(body.trimStart(), {
+  return withSecurityHeaders(new Response(body, {
     headers: {
       "Content-Type": "application/javascript; charset=utf-8",
-      "Cache-Control": "no-cache, must-revalidate",
+      // Cache-Control + CDN-Cache-Control (Cloudflare): el SW debe revalidarse
+      // SIEMPRE para que el browser detecte nuevas versiones tras un deploy.
+      // Si CF cachea max-age=14400, los usuarios siguen registrando el SW viejo
+      // durante horas. CDN-Cache-Control sobreescribe Cache-Control en Cloudflare.
+      "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      "CDN-Cache-Control": "no-store",
+      "Pragma": "no-cache",
+      "Expires": "0",
     },
   }));
 }

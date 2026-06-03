@@ -16,11 +16,36 @@
       document.documentElement.setAttribute('data-theme', localStorage.getItem('abax.theme') || 'dark');
     </script>
     <script>
+      // SW lifecycle:
+      // - register() y luego registration.update() en cada load → fuerza a Chrome
+      //   a re-fetchear sw.js incluso si el browser hubiera cacheado el registro.
+      // - 'updatefound' + statechange 'installed' → si hay SW antiguo controlando,
+      //   llamamos skipWaiting via postMessage para que active el nuevo de inmediato.
+      // - controllerchange → recargamos una vez para que la página corra contra el
+      //   nuevo SW (que sirve el bundle nuevo). Sin esto, el user tendría que
+      //   refrescar dos veces tras un deploy.
       if ('serviceWorker' in navigator) {
+        let reloading = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (reloading) return;
+          reloading = true;
+          window.location.reload();
+        });
         window.addEventListener('load', () => {
           const base = window.__ABAX_CONFIG__?.publicBasePath || '/';
           const swUrl = `${base.endsWith('/') ? base : `${base}/`}sw.js`;
-          navigator.serviceWorker.register(swUrl).catch(() => {});
+          navigator.serviceWorker.register(swUrl).then((registration) => {
+            registration.update().catch(() => {});
+            registration.addEventListener('updatefound', () => {
+              const next = registration.installing;
+              if (!next) return;
+              next.addEventListener('statechange', () => {
+                if (next.state === 'installed' && navigator.serviceWorker.controller) {
+                  next.postMessage({ type: 'SKIP_WAITING' });
+                }
+              });
+            });
+          }).catch(() => {});
         });
       }
     </script>
