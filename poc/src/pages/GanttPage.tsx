@@ -12,7 +12,7 @@ import { MobileTaskList } from '../components/MobileTaskList';
 import { Toolbar } from '../components/Toolbar';
 import { errorMessage, useToast } from '../lib/toast';
 import { usePortfolio } from '../hooks/usePortfolio';
-import { addAssignee, apiUrl, createDependency, createProject, createWbsNode, deleteDependency, deleteWbsNode, listAssignees, moveWbsNode, removeAssignee, reportProgress, scheduleWbsNode, unscheduleWbsNode, updateWbsNode } from '../lib/api';
+import { addAssignee, apiUrl, createDependency, createProject, createWbsNode, deleteDependency, deleteWbsNode, listAssignees, moveWbsNode, removeAssignee, reportProgress, scheduleWbsNode, unscheduleWbsNode, updateProject, updateWbsNode } from '../lib/api';
 import { collectSubtreeIds } from '../lib/portfolio-state';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { computeNodeStatus } from '../lib/status';
@@ -120,6 +120,10 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
     return raw === 'projects' ? 'projects' : 'all';
   });
 
+  // Filtro por equipo (Fase 9 post): client-side, igual que responsible/assignee.
+  // Reduce el pool a los proyectos cuyo project.team_id coincide.
+  const [teamFilter, setTeamFilter] = useState<string | null>(() => searchParams.get('team') || readFilter('team') || null);
+
   // Rediseño Fase 7 — agrupación (handoff §5.2). El backend aún no tiene
   // `teams`, así que solo exponemos 'responsible'. Inserta cabeceras
   // sintéticas (id con prefijo "__resp__") encima de los proyectos.
@@ -137,8 +141,8 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
   }, [ganttScale]);
 
   useEffect(() => {
-    saveFilters({ q: searchTerm, type: typeFilter ?? '', unscheduled: showUnscheduled ? '1' : '', my: myTasks ? '1' : '', focus: focusProjectId ?? '', project_id: projectFilter ?? '', responsible_id: responsibleFilter ?? '', assignee_id: assigneeFilter ?? '', status: statusFilter ?? '', date_from: dateFrom, date_to: dateTo, active_only: activeOnly ? '1' : '', backlog_gantt: showBacklogInGantt ? '1' : '', match: matchScope === 'projects' ? 'projects' : '', group: groupBy === 'none' ? '' : groupBy });
-  }, [searchTerm, typeFilter, showUnscheduled, myTasks, focusProjectId, projectFilter, responsibleFilter, assigneeFilter, statusFilter, dateFrom, dateTo, activeOnly, showBacklogInGantt, matchScope, groupBy]);
+    saveFilters({ q: searchTerm, type: typeFilter ?? '', unscheduled: showUnscheduled ? '1' : '', my: myTasks ? '1' : '', focus: focusProjectId ?? '', project_id: projectFilter ?? '', responsible_id: responsibleFilter ?? '', assignee_id: assigneeFilter ?? '', status: statusFilter ?? '', date_from: dateFrom, date_to: dateTo, active_only: activeOnly ? '1' : '', backlog_gantt: showBacklogInGantt ? '1' : '', match: matchScope === 'projects' ? 'projects' : '', group: groupBy === 'none' ? '' : groupBy, team: teamFilter ?? '' });
+  }, [searchTerm, typeFilter, showUnscheduled, myTasks, focusProjectId, projectFilter, responsibleFilter, assigneeFilter, statusFilter, dateFrom, dateTo, activeOnly, showBacklogInGantt, matchScope, groupBy, teamFilter]);
 
   // Panel de detalle on-demand: el usuario lo abre/cierra explícitamente.
   // Default cerrado para mantener el Gantt con máximo ancho.
@@ -327,6 +331,18 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
     }
   }, [notify, onSelectNode, portfolio, selectedNode, token]);
 
+  const handleSaveProjectTeam = useCallback(async (projectId: string, teamId: string | null) => {
+    if (!token) return;
+    try {
+      await updateProject(token, projectId, { team_id: teamId });
+      await portfolio.refetch();
+      notify({ tone: 'success', title: teamId ? 'Equipo asignado' : 'Equipo retirado' });
+    } catch (error) {
+      notify({ tone: 'error', title: 'No se pudo actualizar el equipo', detail: errorMessage(error) });
+      throw error;
+    }
+  }, [notify, portfolio, token]);
+
   const handleCreateDependency = useCallback(async (input: { predecessor_id: string; successor_id: string; type: DependencyType }) => {
     if (!token) return null;
     try {
@@ -436,6 +452,17 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
       pool = pool.filter((n) => n.is_unscheduled);
     }
 
+    // Filtro por equipo (Fase 9 post): se resuelve via portfolio.projects → team_id.
+    // Acotar el pool a los proyectos cuyo team coincide reduce todos los descendientes.
+    if (teamFilter) {
+      const projectIdsInTeam = new Set(
+        (portfolio.data?.projects ?? [])
+          .filter((p) => (p.team_id ?? p.teams?.id ?? null) === teamFilter)
+          .map((p) => p.id),
+      );
+      pool = pool.filter((n) => projectIdsInTeam.has(n.project_id));
+    }
+
     // "Tipo" es exclusivo y plano — no entra en la lógica de matchScope.
     if (typeFilter) {
       return pool.filter((n) => n.type === typeFilter);
@@ -503,7 +530,7 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
     }
 
     return pool.filter((n) => keptSet.has(n.id));
-  }, [portfolio.data?.nodes, searchTerm, typeFilter, showUnscheduled, myTasks, focusProjectId, currentUserId, statusFilter, responsibleFilter, assigneeFilter, matchScope]);
+  }, [portfolio.data?.nodes, portfolio.data?.projects, searchTerm, typeFilter, showUnscheduled, myTasks, focusProjectId, currentUserId, statusFilter, responsibleFilter, assigneeFilter, matchScope, teamFilter]);
 
   const filteredBacklog = useMemo(() => {
     let backlog = portfolio.data?.backlog ?? [];
@@ -568,7 +595,7 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  const hasActiveFilters = !!(searchTerm || typeFilter || showUnscheduled || myTasks || focusProjectId || projectFilter || responsibleFilter || assigneeFilter || statusFilter || dateFrom || dateTo);
+  const hasActiveFilters = !!(searchTerm || typeFilter || showUnscheduled || myTasks || focusProjectId || projectFilter || responsibleFilter || assigneeFilter || statusFilter || dateFrom || dateTo || teamFilter);
 
   const projectNamesMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -759,6 +786,9 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
         onActiveOnly={(v) => { setActiveOnly(v); syncUrl({ active_only: v ? '' : 'false' }); }}
         matchScope={matchScope}
         onMatchScope={(m) => { setMatchScope(m); syncUrl({ match: m === 'projects' ? 'projects' : '' }); }}
+        teamFilter={teamFilter}
+        onTeamFilter={(id) => { setTeamFilter(id); syncUrl({ team: id ?? '' }); }}
+        teams={portfolio.data?.teams?.filter((t) => t.is_active !== false) ?? []}
         totalVisible={filteredNodes.length + filteredBacklog.length}
         hasActiveFilters={hasActiveFilters}
         onClear={() => {
@@ -768,8 +798,9 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
           setAssigneeFilter(null); setStatusFilter(null); setDateFrom(''); setDateTo(''); setActiveOnly(true);
           setMatchScope('all');
           setGroupByState('none');
+          setTeamFilter(null);
           clearAllLocalState();
-          syncUrl({ q: '', type: '', unscheduled: '', my: '', focus: '', project_id: '', responsible_id: '', assignee_id: '', status: '', date_from: '', date_to: '', backlog_gantt: '', match: '', group: '' });
+          syncUrl({ q: '', type: '', unscheduled: '', my: '', focus: '', project_id: '', responsible_id: '', assignee_id: '', status: '', date_from: '', date_to: '', backlog_gantt: '', match: '', group: '', team: '' });
           setGroupByState('none');
         }}
         users={portfolio.data?.users ?? []}
@@ -903,6 +934,13 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
               pinned={detailPinned}
               onTogglePinned={toggleDetailPinned}
               onDeleteRequest={requestDeleteNode}
+              teams={portfolio.data?.teams?.filter((t) => t.is_active !== false) ?? []}
+              currentTeamId={
+                selectedNode && selectedNode.type === 'project'
+                  ? (portfolio.data?.projects.find((p) => p.id === selectedNode.project_id)?.team_id ?? null)
+                  : null
+              }
+              onSaveTeam={handleSaveProjectTeam}
             />
           </ErrorBoundary>
         ) : (

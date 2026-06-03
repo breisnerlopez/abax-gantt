@@ -181,6 +181,11 @@ export async function updateTeam(token: string, id: string, patch: Partial<Pick<
   return apiSend<Team>(`api/admin/teams/${id}`, token, 'PATCH', patch);
 }
 
+/** PATCH /api/projects/:id — actualiza campos del proyecto (Fase 9: team_id editable). */
+export async function updateProject(token: string, id: string, patch: { team_id?: string | null }) {
+  return apiSend<Project>(`api/projects/${id}`, token, 'PATCH', patch);
+}
+
 export async function createWbsNode(token: string, input: { parent_id: string; name: string; type: NodeType; start_date?: string | null; end_date?: string | null }) {
   return apiSend<WbsNode>('api/wbs', token, 'POST', input);
 }

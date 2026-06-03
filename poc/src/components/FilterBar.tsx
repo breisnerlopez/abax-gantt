@@ -11,8 +11,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { SearchableSelect } from './SearchableSelect';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { blockWheel } from '../lib/blockWheel';
 import { STATUS_LABELS, STATUS_SEMAPHORE } from '../lib/status';
-import type { NodeType } from '../lib/types';
+import type { NodeType, Team } from '../lib/types';
 
 interface FilterBarProps {
   search: string;
@@ -40,6 +41,9 @@ interface FilterBarProps {
   onActiveOnly: (active: boolean) => void;
   matchScope: 'all' | 'projects';
   onMatchScope: (scope: 'all' | 'projects') => void;
+  teamFilter?: string | null;
+  onTeamFilter?: (id: string | null) => void;
+  teams?: Team[];
   totalVisible: number;
   hasActiveFilters: boolean;
   onClear: () => void;
@@ -65,6 +69,7 @@ export function FilterBar({
   dateFrom, onDateFrom, dateTo, onDateTo,
   activeOnly, onActiveOnly,
   matchScope, onMatchScope,
+  teamFilter, onTeamFilter, teams,
   totalVisible, hasActiveFilters, onClear, users,
 }: FilterBarProps) {
   // Debounce de la búsqueda: 250ms tras última pulsación.
@@ -101,6 +106,7 @@ export function FilterBar({
   const responsibleName = responsibleFilter ? (users.find((u) => u.id === responsibleFilter)?.full_name ?? 'Usuario') : null;
   const assigneeName = assigneeFilter ? (users.find((u) => u.id === assigneeFilter)?.full_name ?? 'Usuario') : null;
   const projectName = projectFilter ? (projectOptions.find((p) => p.id === projectFilter)?.name ?? projectFilter) : null;
+  const teamName = teamFilter ? ((teams ?? []).find((t) => t.id === teamFilter)?.name ?? 'Equipo') : null;
 
   // Cuenta de filtros activos (mostrar badge a la derecha).
   const activeCount =
@@ -110,6 +116,7 @@ export function FilterBar({
     (responsibleFilter ? 1 : 0) +
     (assigneeFilter ? 1 : 0) +
     (projectFilter ? 1 : 0) +
+    (teamFilter ? 1 : 0) +
     (showUnscheduled ? 1 : 0) +
     (showBacklogInGantt ? 0 : 1) +
     (activeOnly ? 0 : 1) +
@@ -122,6 +129,7 @@ export function FilterBar({
     (responsibleFilter ? 1 : 0) +
     (assigneeFilter ? 1 : 0) +
     (projectFilter ? 1 : 0) +
+    (teamFilter ? 1 : 0) +
     (showUnscheduled ? 1 : 0) +
     (!showBacklogInGantt ? 1 : 0) +
     (!activeOnly ? 1 : 0) +
@@ -252,6 +260,21 @@ export function FilterBar({
               />
             </div>
 
+            {onTeamFilter && (
+              <>
+                <div className="fb-menu-label">Equipo</div>
+                <div className="fb-menu-field">
+                  <SearchableSelect
+                    value={teamFilter ?? ''}
+                    options={(teams ?? []).map((t) => ({ id: t.id, label: t.name }))}
+                    placeholder={(teams ?? []).length === 0 ? 'Sin equipos creados' : 'Todos'}
+                    ariaLabel="Filtrar por equipo"
+                    onChange={(id) => onTeamFilter(id)}
+                  />
+                </div>
+              </>
+            )}
+
             <div className="fb-menu-sep" />
             <div className="fb-menu-label">Vista</div>
             <button
@@ -312,11 +335,11 @@ export function FilterBar({
             <div className="fb-menu-grid">
               <label className="fb-menu-inline">
                 <span>Desde</span>
-                <input type="date" value={dateFrom} onChange={(e) => onDateFrom(e.target.value)} />
+                <input type="date" value={dateFrom} onWheel={blockWheel} onChange={(e) => onDateFrom(e.target.value)} />
               </label>
               <label className="fb-menu-inline">
                 <span>Hasta</span>
-                <input type="date" value={dateTo} onChange={(e) => onDateTo(e.target.value)} />
+                <input type="date" value={dateTo} onWheel={blockWheel} onChange={(e) => onDateTo(e.target.value)} />
               </label>
             </div>
 
@@ -356,6 +379,16 @@ export function FilterBar({
           title={`Quitar filtro Proyecto: ${projectName}`}
         >
           {projectName} <span className="fb-chip-x" aria-hidden="true">×</span>
+        </button>
+      )}
+      {teamName && onTeamFilter && (
+        <button
+          type="button"
+          className="chip is-on fb-active-chip"
+          onClick={() => onTeamFilter(null)}
+          title={`Quitar filtro Equipo: ${teamName}`}
+        >
+          Equipo: {teamName} <span className="fb-chip-x" aria-hidden="true">×</span>
         </button>
       )}
       {matchScope === 'projects' && (

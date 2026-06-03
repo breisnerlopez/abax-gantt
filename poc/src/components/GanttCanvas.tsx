@@ -74,6 +74,34 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     rebuildColumnsRef.current?.();
   }, [visibleColumns]);
 
+  // Padding de fechas: extiende el viewport horizontal -1 mes hacia atrás y
+  // +6 meses hacia adelante desde el rango real de los nodos, para que el
+  // usuario siempre vea "futuro próximo" en la timeline aunque los proyectos
+  // ya hayan terminado. Sustituye al viejo `fit_tasks=true`.
+  useEffect(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let minStart: Date = today;
+    let maxEnd: Date = today;
+    for (const n of nodes) {
+      if (n.start_date) {
+        const d = new Date(n.start_date);
+        if (!Number.isNaN(d.getTime()) && d < minStart) minStart = d;
+      }
+      if (n.end_date) {
+        const d = new Date(n.end_date);
+        if (!Number.isNaN(d.getTime()) && d > maxEnd) maxEnd = d;
+      }
+    }
+    const start = new Date(minStart);
+    start.setMonth(start.getMonth() - 1);
+    const end = new Date(maxEnd > today ? maxEnd : today);
+    end.setMonth(end.getMonth() + 6);
+    gantt.config.start_date = start;
+    gantt.config.end_date = end;
+    try { gantt.render(); } catch { /* gantt aún no inicializado */ }
+  }, [nodes]);
+
   // Init UNA SOLA VEZ (depende sólo de canEditStructure para reconfigurar permisos).
   // Antes incluíamos `nodes` en deps, lo que disparaba un gantt.init + clearAll cada vez
   // que cambiaban los nodos y dejaba el grid vacío.
@@ -91,7 +119,11 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     gantt.config.row_height = 32;
     gantt.config.scale_height = 56;
     gantt.config.min_column_width = 42;
-    gantt.config.fit_tasks = true;
+    // Antes: fit_tasks=true comprimía el viewport al rango exacto de las tareas
+    // (terminaba "hoy" si los proyectos no se extienden al futuro). Ahora
+    // calculamos start_date/end_date desde los datos + un padding de -1 mes y
+    // +6 meses para que siempre se vea futuro (y un poco de pasado).
+    gantt.config.fit_tasks = false;
     gantt.config.order_branch = canEditStructure;
     gantt.config.order_branch_free = canEditStructure;
     gantt.config.show_quick_info = true;

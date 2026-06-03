@@ -2,6 +2,7 @@ import { Navigate, useNavigate } from 'react-router';
 import { useCallback, useEffect, useState } from 'react';
 import { AppShell } from '../components/AppShell';
 import { apiUrl, createTeam, listAdminTeams, updateTeam } from '../lib/api';
+import { blockWheel } from '../lib/blockWheel';
 import { errorMessage, useToast } from '../lib/toast';
 import type { AuthSession, Profile, Team } from '../lib/types';
 
@@ -185,7 +186,7 @@ export function AdminPage({ session, onLogout }: AdminPageProps) {
                   onChange={(e) => setFilterText(e.target.value)}
                   placeholder="Buscar por nombre o email"
                 />
-                <select aria-label="Filtrar por estado de usuario" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}>
+                <select aria-label="Filtrar por estado de usuario" value={statusFilter} onWheel={blockWheel} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}>
                   <option value="active">Activos</option>
                   <option value="inactive">Inactivos</option>
                   <option value="invited">Invitados</option>
@@ -246,6 +247,7 @@ export function AdminPage({ session, onLogout }: AdminPageProps) {
             <select
               aria-label="Lead del equipo"
               value={teamLead}
+              onWheel={blockWheel}
               onChange={(e) => setTeamLead(e.target.value)}
             >
               <option value="">Sin asignar</option>
@@ -269,6 +271,7 @@ export function AdminPage({ session, onLogout }: AdminPageProps) {
               <select
                 aria-label="Filtrar por estado de equipo"
                 value={teamFilter}
+                onWheel={blockWheel}
                 onChange={(e) => setTeamFilter(e.target.value as typeof teamFilter)}
               >
                 <option value="active">Activos</option>

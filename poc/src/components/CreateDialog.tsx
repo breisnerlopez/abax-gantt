@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import type { NodeType, Team, WbsNode } from '../lib/types';
+import { blockWheel } from '../lib/blockWheel';
 import { normalizeNodeDates, validateNodeInput } from '../lib/validation';
 
 type DialogMode = 'project' | 'child';
@@ -95,6 +96,7 @@ export function CreateDialog({ mode, parent, onClose, onCreateProject, onCreateC
             <select
               aria-label="Equipo del proyecto"
               value={teamId}
+              onWheel={blockWheel}
               onChange={(event) => setTeamId(event.target.value)}
             >
               <option value="">Sin equipo</option>
@@ -112,7 +114,7 @@ export function CreateDialog({ mode, parent, onClose, onCreateProject, onCreateC
           <>
             <label className="edit-field">
               <span>Tipo</span>
-              <select value={type} onChange={(event) => setType(event.target.value as NodeType)}>
+              <select value={type} onWheel={blockWheel} onChange={(event) => setType(event.target.value as NodeType)}>
                 {childTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
               </select>
             </label>
@@ -124,11 +126,11 @@ export function CreateDialog({ mode, parent, onClose, onCreateProject, onCreateC
               <div className="field-grid">
                 <label className="edit-field">
                   <span>Inicio</span>
-                  <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+                  <input type="date" value={startDate} onWheel={blockWheel} onChange={(event) => setStartDate(event.target.value)} />
                 </label>
                 <label className="edit-field">
                   <span>Fin</span>
-                  <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
+                  <input type="date" value={endDate} onWheel={blockWheel} onChange={(event) => setEndDate(event.target.value)} />
                 </label>
               </div>
             )}

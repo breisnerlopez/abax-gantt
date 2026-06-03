@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { blockWheel } from '../lib/blockWheel';
 type DetailTab = 'info' | 'responsables' | 'ejecutores' | 'avance' | 'horas' | 'presupuesto' | 'adjuntos';
 const PRIMARY_TABS: { id: DetailTab; label: string }[] = [
   { id: 'info', label: 'Info' },
@@ -71,11 +72,17 @@ interface DetailPanelProps {
   /** Solicita borrar el nodo (lanza el ConfirmDialog en el padre). El botón
       solo se muestra si la prop se pasa Y canEditStructure Y type !== 'project'. */
   onDeleteRequest?: (node: WbsNode) => void;
+  /** Fase 9 + post: editor de equipo. teams = equipos activos disponibles.
+      `currentTeamId` viene de portfolio.data.projects[i].team_id porque el
+      DetailPanel recibe un WbsNode (no un Project). */
+  teams?: import('../lib/types').Team[];
+  currentTeamId?: string | null;
+  onSaveTeam?: (projectId: string, teamId: string | null) => Promise<void>;
 }
 
 type SaveState = 'saved' | 'saving' | 'error';
 
-export function DetailPanel({ node, token, users, assignees, onSave, onUnschedule, onAddAssignee, onRemoveAssignee, onReportProgress, onSetResponsible, canEditStructure, canReportProgress, onClose, pinned, onTogglePinned, onDeleteRequest }: DetailPanelProps) {
+export function DetailPanel({ node, token, users, assignees, onSave, onUnschedule, onAddAssignee, onRemoveAssignee, onReportProgress, onSetResponsible, canEditStructure, canReportProgress, onClose, pinned, onTogglePinned, onDeleteRequest, teams, currentTeamId, onSaveTeam }: DetailPanelProps) {
   const [form, setForm] = useState(() => toForm(node));
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [activeTab, setActiveTab] = useState<DetailTab>('info');
@@ -234,7 +241,7 @@ export function DetailPanel({ node, token, users, assignees, onSave, onUnschedul
           )}
         </div>
       </nav>
-      {activeTab === 'info' && <div role="tabpanel"><InfoTab node={node} form={form} update={update} onUnschedule={onUnschedule} canEditStructure={canEditStructure} /></div>}
+      {activeTab === 'info' && <div role="tabpanel"><InfoTab node={node} form={form} update={update} onUnschedule={onUnschedule} canEditStructure={canEditStructure} teams={teams} currentTeamId={currentTeamId} onSaveTeam={onSaveTeam} /></div>}
       {activeTab === 'responsables' && <div role="tabpanel"><ResponsibleTab node={node} users={users} onSetResponsible={onSetResponsible} canEditStructure={canEditStructure} /></div>}
       {activeTab === 'ejecutores' && <div role="tabpanel"><ExecutorsTab users={users} assignees={assignees} onAddAssignee={onAddAssignee} onRemoveAssignee={onRemoveAssignee} canEditStructure={canEditStructure} /></div>}
       {activeTab === 'avance' && <div role="tabpanel"><ProgressTab node={node} onReportProgress={onReportProgress} canReportProgress={canReportProgress} /></div>}
@@ -286,7 +293,7 @@ function ResponsibleTab({ node, users, onSetResponsible, canEditStructure }: { n
       <form className="assign-form" onSubmit={submit}>
         <label className="edit-field">
           <span>Designar responsable</span>
-          <select value={selectedUser} onChange={(event) => setSelectedUser(event.target.value)} disabled={!canEditStructure}>
+          <select value={selectedUser} onWheel={blockWheel} onChange={(event) => setSelectedUser(event.target.value)} disabled={!canEditStructure}>
             <option value="">Sin responsable directo</option>
             {activeUsers.map((user) => <option key={user.id} value={user.id}>{displayUser(user)}</option>)}
           </select>
@@ -298,7 +305,22 @@ function ResponsibleTab({ node, users, onSetResponsible, canEditStructure }: { n
   );
 }
 
-function InfoTab({ node, form, update, onUnschedule, canEditStructure }: { node: WbsNode; form: ReturnType<typeof toForm>; update: (field: keyof ReturnType<typeof toForm>, value: string) => void; onUnschedule: (node: WbsNode) => Promise<void>; canEditStructure: boolean }) {
+function InfoTab({
+  node, form, update, onUnschedule, canEditStructure,
+  teams, currentTeamId, onSaveTeam,
+}: {
+  node: WbsNode;
+  form: ReturnType<typeof toForm>;
+  update: (field: keyof ReturnType<typeof toForm>, value: string) => void;
+  onUnschedule: (node: WbsNode) => Promise<void>;
+  canEditStructure: boolean;
+  teams?: import('../lib/types').Team[];
+  currentTeamId?: string | null;
+  onSaveTeam?: (projectId: string, teamId: string | null) => Promise<void>;
+}) {
+  const isProject = node.type === 'project';
+  const showTeamField = isProject && onSaveTeam !== undefined;
+  const [savingTeam, setSavingTeam] = useState(false);
   return (
     <section className="detail-content">
       {!canEditStructure && <div className="detail-callout">Modo lectura. Como ejecutor solo puedes reportar avance y horas.</div>}
@@ -307,8 +329,39 @@ function InfoTab({ node, form, update, onUnschedule, canEditStructure }: { node:
         : node.type === 'task' && canEditStructure && <button className="danger-soft-button" onClick={() => void onUnschedule(node)}>Enviar al backlog</button>}
       <label className="edit-field"><span>Nombre</span><input value={form.name} disabled={!canEditStructure} onChange={(event) => update('name', event.target.value)} /></label>
       <label className="edit-field"><span>Descripción</span><textarea value={form.description} disabled={!canEditStructure} onChange={(event) => update('description', event.target.value)} /></label>
+      {showTeamField && (
+        <label className="edit-field">
+          <span>Equipo</span>
+          <select
+            value={currentTeamId ?? ''}
+            disabled={!canEditStructure || savingTeam}
+            onWheel={blockWheel}
+            onChange={async (e) => {
+              const newValue = e.target.value || null;
+              if (newValue === (currentTeamId ?? null)) return;
+              setSavingTeam(true);
+              try {
+                // node.project_id en un root project apunta al proyecto mismo
+                await onSaveTeam!(node.project_id, newValue);
+              } finally {
+                setSavingTeam(false);
+              }
+            }}
+          >
+            <option value="">Sin equipo</option>
+            {(teams ?? []).map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+          {(teams ?? []).length === 0 && (
+            <small style={{ color: 'var(--text-faint)', fontSize: 11, marginTop: 4, display: 'block' }}>
+              Crea equipos desde Admin para asignarlos aquí.
+            </small>
+          )}
+        </label>
+      )}
       <label className="edit-field"><span>Estado</span>
-        <select value={form.status ?? ''} disabled={!canEditStructure} onChange={(event) => update('status', event.target.value)}>
+        <select value={form.status ?? ''} disabled={!canEditStructure} onWheel={blockWheel} onChange={(event) => update('status', event.target.value)}>
           <option value="">Automático ({statusLabel(node)})</option>
           {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
         </select>
@@ -324,15 +377,15 @@ function InfoTab({ node, form, update, onUnschedule, canEditStructure }: { node:
             <>
               <label className="edit-field">
                 <span>Inicio</span>
-                <input type="date" value={form.start_date} disabled={datesDisabled} onChange={(event) => update('start_date', event.target.value)} />
+                <input type="date" value={form.start_date} disabled={datesDisabled} onWheel={blockWheel} onChange={(event) => update('start_date', event.target.value)} />
                 {isContainer && <small style={{ color: 'var(--text-tertiary)', fontSize: 11, marginTop: 4, display: 'block' }}>Calculado desde la fecha más temprana de los hijos.</small>}
               </label>
               <label className="edit-field">
                 <span>Fin</span>
-                <input type="date" value={form.end_date} disabled={datesDisabled} onChange={(event) => update('end_date', event.target.value)} />
+                <input type="date" value={form.end_date} disabled={datesDisabled} onWheel={blockWheel} onChange={(event) => update('end_date', event.target.value)} />
                 {isContainer && <small style={{ color: 'var(--text-tertiary)', fontSize: 11, marginTop: 4, display: 'block' }}>Calculado desde la fecha más tardía de los hijos.</small>}
               </label>
-              <label className="edit-field"><span>Horas estimadas</span><input type="number" min="0" value={form.estimated_hours} disabled={!canEditStructure} onChange={(event) => update('estimated_hours', event.target.value)} /></label>
+              <label className="edit-field"><span>Horas estimadas</span><input type="number" min="0" value={form.estimated_hours} disabled={!canEditStructure} onWheel={blockWheel} onChange={(event) => update('estimated_hours', event.target.value)} /></label>
             </>
           );
         })()}
@@ -364,7 +417,7 @@ function ExecutorsTab({ users, assignees, onAddAssignee, onRemoveAssignee, canEd
       <form className="assign-form" onSubmit={(event) => { event.preventDefault(); if (selectedUser) void onAddAssignee(selectedUser); setSelectedUser(''); }}>
         <label className="edit-field">
           <span>Asignar ejecutor</span>
-          <select value={selectedUser} onChange={(event) => setSelectedUser(event.target.value)} disabled={!canEditStructure}>
+          <select value={selectedUser} onWheel={blockWheel} onChange={(event) => setSelectedUser(event.target.value)} disabled={!canEditStructure}>
             <option value="">Selecciona usuario activo</option>
             {availableUsers.map((user) => <option key={user.id} value={user.id}>{user.full_name ?? user.email ?? user.id}</option>)}
           </select>
