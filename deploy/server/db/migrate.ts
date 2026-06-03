@@ -35,7 +35,7 @@ export async function runMigrations() {
   files.sort();
 
   for (const file of files) {
-    const rows: unknown[] = await sql`SELECT 1 FROM _migrations WHERE name = ${file}`;
+    const rows = await sql`SELECT 1 FROM _migrations WHERE name = ${file}`;
     if (rows.length > 0) {
       console.log(`[migrate] ${file} - ya ejecutada`);
       continue;

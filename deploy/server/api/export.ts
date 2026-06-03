@@ -16,16 +16,24 @@ export async function handler(req: Request): Promise<Response> {
     if (req.method !== "GET") throw new ApiError(405, "Metodo no permitido");
     if (format === "pdf" || format === "png") throw new ApiError(501, "Export PNG/PDF debe generarse en el cliente");
 
-    const {rows: [project]} = await db.query(`SELECT *, COALESCE((SELECT json_build_object('id',pt.id,'name',pt.name,'color',pt.color) FROM project_types pt WHERE pt.id = projects.project_type_id), null) AS project_types FROM projects WHERE id = $1`, [id]);
+    const projectRes = await db.query<Record<string, unknown>>(`SELECT *, COALESCE((SELECT json_build_object('id',pt.id,'name',pt.name,'color',pt.color) FROM project_types pt WHERE pt.id = projects.project_type_id), null) AS project_types FROM projects WHERE id = $1`, [id]);
+    const project = projectRes.rows[0];
     if (!project) throw new ApiError(404, "Proyecto no encontrado");
 
-    const {rows:nodes} = await db.query(
-      `SELECT wn.*, COALESCE((SELECT json_agg(json_build_object('user_id',ta.user_id,'profiles',json_build_object('full_name',p.full_name))) FROM task_assignees ta JOIN profiles p ON p.id = ta.user_id WHERE ta.task_id = wn.id),'[]'::json) AS task_assignees FROM wbs_nodes wn WHERE wn.project_id = $1 ORDER BY wn.path, wn.sort_order`, [id]);
+    const nodesRes = await db.query<Record<string, unknown>>(
+      `SELECT wn.*, COALESCE((SELECT json_agg(json_build_object('user_id',ta.user_id,'profiles',json_build_object('full_name',p.full_name))) FROM task_assignees ta JOIN profiles p ON p.id = ta.user_id WHERE ta.task_id = wn.id),'[]'::json) AS task_assignees FROM wbs_nodes wn WHERE wn.project_id = $1 ORDER BY wn.path, wn.sort_order`,
+      [id],
+    );
+    const nodes = nodesRes.rows;
 
-    const {rows:deps} = await db.query(`SELECT * FROM dependencies WHERE predecessor_id IN (SELECT id FROM wbs_nodes WHERE project_id = $1) OR successor_id IN (SELECT id FROM wbs_nodes WHERE project_id = $1)`, [id]);
+    const depsRes = await db.query<Record<string, unknown>>(
+      `SELECT * FROM dependencies WHERE predecessor_id IN (SELECT id FROM wbs_nodes WHERE project_id = $1) OR successor_id IN (SELECT id FROM wbs_nodes WHERE project_id = $1)`,
+      [id],
+    );
+    const deps = depsRes.rows;
 
     if (format === "html") {
-      const html = renderHtml(project as Record<string, unknown>, nodes as Record<string, unknown>[], deps as Record<string, unknown>[]);
+      const html = renderHtml(project, nodes, deps);
       return new Response(html, {
         headers: {
           "Content-Type": "text/html; charset=utf-8",
@@ -37,10 +45,13 @@ export async function handler(req: Request): Promise<Response> {
 
     if (format === "csv") {
       const headers = ["id","name","type","start_date","end_date","duration_days","progress","estimated_hours","estimated_cost","responsible_id","is_unscheduled","parent_id","project_id"];
-      const csv = [headers.join(","), ...nodes.map((n:Record<string,unknown>) => headers.map(h => {
-        const v = String(n[h] ?? "");
-        return v.includes(",") || v.includes('"') ? `"${v.replaceAll('"','""')}"` : v;
-      }).join(","))].join("\n");
+      const csv = [
+        headers.join(","),
+        ...nodes.map((n) => headers.map((h) => {
+          const v = String(n[h] ?? "");
+          return v.includes(",") || v.includes('"') ? `"${v.replaceAll('"', '""')}"` : v;
+        }).join(",")),
+      ].join("\n");
       return new Response(csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${String(project.name || "proyecto")}.csv"`, "Access-Control-Allow-Origin": "*" } });
     }
 
