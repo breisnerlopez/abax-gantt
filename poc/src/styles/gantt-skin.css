@@ -232,3 +232,32 @@
   opacity: .8;
   vertical-align: 2px;
 }
+
+/* Resizer entre el grid y el timeline. DHTMLX renderiza un wrap de 5px sin
+   estilo; lo subimos a 6px con un divisor visible centrado, cursor col-resize
+   y un hover que indica que es arrastrable. */
+.gantt_grid_resize_wrap {
+  width: 6px !important;
+  cursor: col-resize;
+  background: var(--abx-bg-1, transparent);
+  z-index: 2;
+}
+.gantt_grid_resize_wrap::before {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 50%;
+  width: 1px;
+  margin-left: -0.5px;
+  background: var(--abx-bd-strong, rgba(255,255,255,.18));
+  transition: background .12s, width .12s;
+}
+.gantt_grid_resize_wrap:hover::before,
+.gantt_grid_resize_wrap:active::before {
+  width: 3px;
+  margin-left: -1.5px;
+  background: var(--abx-accent, #4f5bd5);
+}
+.gantt_grid_resize {
+  background: transparent !important;
+}

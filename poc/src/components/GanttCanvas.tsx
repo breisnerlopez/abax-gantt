@@ -559,6 +559,19 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
       && sameParents(lastTopologyRef.current.parents, newParents)
       && sameSet(lastTopologyRef.current.linkIds, newLinkIds);
 
+    // Snapshot del scroll antes del parse. DHTMLX resetea scrollTop/scrollLeft
+    // a 0 dentro de clearAll()+parse(), así que cualquier cambio que dispare
+    // el non-incremental path (crear/borrar dependencia, agregar tarea, etc.)
+    // llevaría al usuario al inicio. Restauramos en un microtask después del
+    // parse para que el viewport quede donde estaba.
+    let savedScroll: { x: number; y: number } | null = null;
+    try {
+      const st = gantt.getScrollState?.();
+      if (st && typeof st.x === 'number' && typeof st.y === 'number') {
+        savedScroll = { x: st.x, y: st.y };
+      }
+    } catch { /* ignore */ }
+
     isParsingRef.current = true;
     if (canIncremental) {
       // Update incremental: solo refrescamos campos visibles de tareas existentes.
@@ -597,6 +610,21 @@ export function GanttCanvas({ nodes, dependencies, users, onSelectNode, onCreate
     }
 
     lastTopologyRef.current = { ids: newIds, parents: newParents, linkIds: newLinkIds };
+    if (savedScroll) {
+      // Programamos la restauración después del paint de DHTMLX. Sin el
+      // requestAnimationFrame, scrollTo() corre antes de que el nuevo layout
+      // exista y se descarta. Llamamos dos veces (next frame + setTimeout) por
+      // si el render del Gantt es asíncrono.
+      const apply = () => {
+        try { gantt.scrollTo?.(savedScroll!.x, savedScroll!.y); } catch { /* ignore */ }
+      };
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(apply);
+      } else {
+        setTimeout(apply, 0);
+      }
+      setTimeout(apply, 32);
+    }
     setTimeout(() => { isParsingRef.current = false; }, 0);
   }, [nodes, dependencies]);
 
