@@ -553,8 +553,20 @@ export function GanttPage({ session, selectedNode, onSelectNode, onLogout }: Gan
     if (statusFilter) backlog = backlog.filter((n) => computeNodeStatus(n) === statusFilter);
     if (responsibleFilter) backlog = backlog.filter((n) => n.responsible_id === responsibleFilter);
     if (assigneeFilter) backlog = backlog.filter((n) => n.task_assignees?.some((a) => a.user_id === assigneeFilter));
+    // El team se resuelve via project_id → projects[].team_id. Sin esto, con
+    // showBacklogInGantt=true (default) los ítems de backlog de proyectos de
+    // otros equipos seguían apareciendo en el Gantt aunque el filtro de team
+    // hubiese acotado los nodos schedulados.
+    if (teamFilter) {
+      const projectIdsInTeam = new Set(
+        (portfolio.data?.projects ?? [])
+          .filter((p) => (p.team_id ?? p.teams?.id ?? null) === teamFilter)
+          .map((p) => p.id),
+      );
+      backlog = backlog.filter((n) => projectIdsInTeam.has(n.project_id));
+    }
     return backlog;
-  }, [portfolio.data?.backlog, searchTerm, typeFilter, myTasks, focusProjectId, currentUserId, statusFilter, responsibleFilter, assigneeFilter]);
+  }, [portfolio.data?.backlog, portfolio.data?.projects, searchTerm, typeFilter, myTasks, focusProjectId, currentUserId, statusFilter, responsibleFilter, assigneeFilter, teamFilter]);
 
   // Rediseño Fase 7: aplica agrupación (cabeceras sintéticas) sobre los nodos
   // ya filtrados. Sólo afecta al portafolio (≥ 2 proyectos con responsables
